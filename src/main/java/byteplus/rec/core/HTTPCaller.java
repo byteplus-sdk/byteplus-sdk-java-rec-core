@@ -1,7 +1,7 @@
 package byteplus.rec.core;
 
-import byteplus.rec.core.volcAuth.Credential;
-import byteplus.rec.core.volcAuth.VoclAuth;
+import byteplus.rec.core.VoclAuth.Credential;
+import byteplus.rec.core.VoclAuth;
 import com.alibaba.fastjson.JSON;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -41,6 +41,8 @@ public class HTTPCaller {
 
     private boolean useAirAuth;
 
+    private String hostHeader;
+
     private Credential credential;
 
     protected <Rsp extends Message, Req extends Message> Rsp doPbRequest(
@@ -50,35 +52,34 @@ public class HTTPCaller {
             Options options) throws NetException, BizException {
         byte[] reqBytes = request.toByteArray();
         String contentType = "application/x-protobuf";
-        return doRequest(url, reqBytes, rspParser, contentType, options);
-    }
-
-    protected <Rsp extends Message> Rsp doJsonRequest(
-            String url,
-            Object request,
-            Parser<Rsp> rspParser,
-            Options options) throws NetException, BizException {
-        byte[] reqBytes = JSON.toJSONBytes(request);
-        String contentType = "application/json";
-        return doRequest(url, reqBytes, rspParser, contentType, options);
-    }
-
-    private <Rsp extends Message> Rsp doRequest(String url,
-                                                byte[] reqBytes,
-                                                Parser<Rsp> rspParser,
-                                                String contentType,
-                                                Options options) throws NetException, BizException {
-        reqBytes = gzipCompress(reqBytes);
-        Headers headers = buildHeaders(options, contentType);
-        url = buildUrlWithQueries(options, url);
-        byte[] rspBytes = doHTTPRequest(url, headers, reqBytes, options.getTimeout());
-
+        byte[] rspBytes = doRequest(url, reqBytes, contentType, options);
         try {
             return rspParser.parseFrom(rspBytes);
         } catch (InvalidProtocolBufferException e) {
             log.error("[ByteplusSDK]parse response fail, url:{} err:{} ", url, e.getMessage());
             throw new BizException("parse response fail");
         }
+    }
+
+    protected <Rsp extends Object> Rsp doJsonRequest(
+            String url,
+            Object request,
+            Rsp resp,
+            Options options) throws NetException, BizException {
+        byte[] reqBytes = JSON.toJSONBytes(request);
+        String contentType = "application/json";
+        byte[] rspBytes = doRequest(url, reqBytes, contentType, options);
+        return JSON.parseObject(rspBytes, resp.getClass());
+    }
+
+    private byte[] doRequest(String url,
+                            byte[] reqBytes,
+                            String contentType,
+                            Options options) throws NetException, BizException {
+        reqBytes = gzipCompress(reqBytes);
+        Headers headers = buildHeaders(options, contentType);
+        url = buildUrlWithQueries(options, url);
+        return doHTTPRequest(url, headers, reqBytes, options.getTimeout());
     }
 
     private byte[] gzipCompress(byte[] bodyBytes) {
@@ -104,8 +105,11 @@ public class HTTPCaller {
         builder.set("Content-Encoding", "gzip");
         builder.set("Accept-Encoding", "gzip");
         builder.set("Content-Type", contentType);
-        builder.set("Accept", "application/x-protobuf"); //response parser only accept pb format
+        builder.set("Accept", contentType);
         builder.set("Tenant-Id", getTenantID());
+        if (Objects.nonNull(hostHeader) && hostHeader.length() > 0) {
+            builder.set("Host", hostHeader);
+        }
         withOptionHeaders(builder, options);
         return builder.build();
     }
@@ -271,14 +275,20 @@ public class HTTPCaller {
     }
 
     private void logHTTPResponse(String url, Response response) throws IOException {
-        byte[] rspBody = gzipDecompress(response.body().bytes(), url);
-        if (Objects.nonNull(rspBody)) {
-            log.error("[ByteplusSDK] http status not 200, url:{} code:{} msg:{} headers:\n{} body:\n{}",
-                    url, response.code(), response.message(), response.headers(), new String(rspBody));
-        } else {
+        byte[] rspBody;
+        if (Objects.isNull(response.body())) {
             log.error("[ByteplusSDK] http status not 200, url:{} code:{} msg:{} headers:\n{}",
                     url, response.code(), response.message(), response.headers());
+            return;
         }
+        String rspEncoding = response.header("Content-Encoding");
+        if (Objects.isNull(rspEncoding) || !rspEncoding.contains("gzip")) {
+            rspBody = response.body().bytes();
+        } else {
+            rspBody = gzipDecompress(response.body().bytes(), url);
+        }
+        log.error("[ByteplusSDK] http status not 200, url:{} code:{} msg:{} headers:\n{} body:\n{}",
+                url, response.code(), response.message(), response.headers(), new String(rspBody));
     }
 
     private byte[] gzipDecompress(byte[] bodyBytes, String url) {

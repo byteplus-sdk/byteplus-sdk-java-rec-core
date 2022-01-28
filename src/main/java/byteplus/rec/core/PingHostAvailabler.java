@@ -1,13 +1,8 @@
 package byteplus.rec.core;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -51,8 +46,8 @@ public class PingHostAvailabler implements HostAvailabler{
         executor.scheduleAtFixedRate(this::checkHost, 0, config.pingInterval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    @Data
-    @Accessors(chain = true)
+    @Setter
+    @Getter(AccessLevel.PROTECTED)
     @AllArgsConstructor
     public static class PingHostAvailablerConfig {
         private String pingURLFormat;
@@ -61,14 +56,25 @@ public class PingHostAvailabler implements HostAvailabler{
         private Duration pingInterval;
         private Duration pingTimeout;
         private List<String> hosts;
+        private String hostHeader;
 
-        protected PingHostAvailablerConfig(List<String> hosts) {
+        public PingHostAvailablerConfig(List<String> hosts) {
             pingURLFormat = DEFAULT_PING_URL_FORMAT;
             windowSize = DEFAULT_WINDOW_SIZE;
             failureRateThreshold = DEFAULT_FAILURE_RATE_THRESHOLD;
             pingInterval = DEFAULT_PING_INTERVAL;
             pingTimeout = DEFAULT_PING_TIMEOUT;
             this.hosts = hosts;
+        }
+
+        public PingHostAvailablerConfig(List<String> hosts, String hostHeader) {
+            pingURLFormat = DEFAULT_PING_URL_FORMAT;
+            windowSize = DEFAULT_WINDOW_SIZE;
+            failureRateThreshold = DEFAULT_FAILURE_RATE_THRESHOLD;
+            pingInterval = DEFAULT_PING_INTERVAL;
+            pingTimeout = DEFAULT_PING_TIMEOUT;
+            this.hosts = hosts;
+            this.hostHeader = hostHeader;
         }
     }
 
@@ -112,9 +118,15 @@ public class PingHostAvailabler implements HostAvailabler{
     }
 
     private boolean doPing(String host) {
-        String url = String.format(config.pingURLFormat, host);
+        String url = String.format(config.getPingURLFormat(), host);
+        Headers.Builder builder = new Headers.Builder();
+        if (Objects.nonNull(config.getHostHeader()) && config.getHostHeader().length() > 0) {
+            builder.set("Host", config.getHostHeader());
+        }
+        Headers headers = builder.build();
         Request httpReq = new Request.Builder()
                 .url(url)
+                .headers(headers)
                 .get()
                 .build();
         Call httpCall = httpCli.newCall(httpReq);
@@ -136,8 +148,16 @@ public class PingHostAvailabler implements HostAvailabler{
     }
 
     @Override
-    public List<String> Hosts() {
+    public List<String> hosts() {
         return config.getHosts();
+    }
+
+    public String hostHeader() {
+        return config.getHostHeader();
+    }
+
+    public void setHostHeader(String hostHeader) {
+        config.setHostHeader(hostHeader);
     }
 
     @Override
@@ -146,12 +166,12 @@ public class PingHostAvailabler implements HostAvailabler{
     }
 
     @Override
-    public String GetHost() {
+    public String getHost() {
         return availableHosts.get(0);
     }
 
     @Override
-    public void Shutdown() {
+    public void shutdown() {
         if (Objects.isNull(executor)) {
             return;
         }

@@ -1,16 +1,21 @@
-package byteplus.rec.core.volcAuth;
+package byteplus.rec.core;
 
-import byteplus.rec.core.Helper;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class VoclAuth {
-
     private static final TimeZone tz = TimeZone.getTimeZone("UTC");
     private static final Set<String> H_INCLUDE = new HashSet<>();
     private static final String TIME_FORMAT_V4 = "yyyyMMdd'T'HHmmss'Z'";
@@ -21,7 +26,7 @@ public class VoclAuth {
         H_INCLUDE.add("Host");
     }
 
-    public static Headers sign(Request request, byte[] reqBytes, Credential credential) throws Exception {
+    protected static Headers sign(Request request, byte[] reqBytes, Credential credential) throws Exception {
         Headers.Builder headerBuilder = request.headers().newBuilder();
 
         String formatDate = getCurrentFormatDate();
@@ -34,7 +39,7 @@ public class VoclAuth {
         meta.setDate(toDate(formatDate));
 
         // step 1 hash request body
-        String bodyHash = VolcAuthHelper.hashSHA256(reqBytes);
+        String bodyHash = hashSHA256(reqBytes);
         headerBuilder.set("X-Content-Sha256", bodyHash);
         // step 2 generate signature
         meta.setCredentialScope(String.join(
@@ -57,7 +62,7 @@ public class VoclAuth {
         byte[] signingKey = genSigningSecretKeyV4(
                 credential.getSecretAccessKey(), meta.getDate(), meta.getRegion(), meta.getService());
 
-        String signature = Helper.bytes2Hex(VolcAuthHelper.hmacSHA256(signingKey, stringToSign));
+        String signature = Helper.bytes2Hex(hmacSHA256(signingKey, stringToSign));
         headerBuilder.set("Authorization", buildAuthHeaderV4(signature, meta, credential));
         return headerBuilder.build();
     }
@@ -97,14 +102,14 @@ public class VoclAuth {
                         bodyHash
                 });
 
-        return VolcAuthHelper.hashSHA256(canonicalRequest.getBytes());
+        return hashSHA256(canonicalRequest.getBytes());
     }
 
     private static byte[] genSigningSecretKeyV4(String secretKey, String date, String region, String service) throws Exception {
-        byte[] kDate = VolcAuthHelper.hmacSHA256((secretKey).getBytes(), date);
-        byte[] kRegion = VolcAuthHelper.hmacSHA256(kDate, region);
-        byte[] kService = VolcAuthHelper.hmacSHA256(kRegion, service);
-        return VolcAuthHelper.hmacSHA256(kService, "request");
+        byte[] kDate = hmacSHA256((secretKey).getBytes(), date);
+        byte[] kRegion = hmacSHA256(kDate, region);
+        byte[] kService = hmacSHA256(kRegion, service);
+        return hmacSHA256(kService, "request");
     }
 
     private static String buildAuthHeaderV4(String signature, MetaData meta, Credential credentials) {
@@ -142,5 +147,58 @@ public class VoclAuth {
             return sortedQuery.replace("+", "%20");
         }
         return "";
+    }
+
+    private static String hashSHA256(byte[] content) throws Exception {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return Helper.bytes2Hex(md.digest(content));
+        } catch (Exception e) {
+            throw new Exception(
+                    "Unable to compute hash while signing request: "
+                            + e.getMessage(), e);
+        }
+    }
+
+    private static byte[] hmacSHA256(byte[] key, String content) throws Exception {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key, "HmacSHA256"));
+            return mac.doFinal(content.getBytes());
+        } catch (Exception e) {
+            throw new Exception(
+                    "Unable to calculate a request signature: "
+                            + e.getMessage(), e);
+        }
+    }
+
+    @Setter(AccessLevel.PROTECTED)
+    @Getter(AccessLevel.PROTECTED)
+    protected static class Credential {
+        private String accessKeyID;
+        private String secretAccessKey;
+        private String service;
+        private String region;
+        private String sessionToken;
+
+        protected Credential(String ak, String sk, String service, String region) {
+            this.accessKeyID = ak;
+            this.secretAccessKey = sk;
+            this.region = region;
+            this.service = service;
+        }
+    }
+
+
+    @Setter(AccessLevel.PRIVATE)
+    @Getter(AccessLevel.PRIVATE)
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
+    private static class MetaData {
+        private String algorithm;
+        private String credentialScope;
+        private String signedHeaders;
+        private String date;
+        private String region;
+        private String service;
     }
 }

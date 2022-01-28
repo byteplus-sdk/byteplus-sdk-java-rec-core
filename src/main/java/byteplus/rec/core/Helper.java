@@ -1,7 +1,7 @@
 package byteplus.rec.core;
 
 public final class Helper {
-    public static String bytes2Hex(byte[] bts) {
+    protected static String bytes2Hex(byte[] bts) {
         StringBuilder sb = new StringBuilder();
         String hex;
         for (byte bt : bts) {

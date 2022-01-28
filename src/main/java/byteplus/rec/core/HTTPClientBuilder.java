@@ -1,13 +1,14 @@
 package byteplus.rec.core;
 
-import byteplus.rec.core.volcAuth.Credential;
+import byteplus.rec.core.VoclAuth.Credential;
+import byteplus.rec.core.PingHostAvailabler.PingHostAvailablerConfig;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import java.util.List;
 import java.util.Objects;
 
-@Accessors(chain = true)
+@Accessors(fluent = true, chain = true)
 @Setter
 public class HTTPClientBuilder {
     private String tenantID;
@@ -26,6 +27,8 @@ public class HTTPClientBuilder {
 
     private List<String> hosts;
 
+    private String hostHeader;
+
     private String region;
 
     private HostAvailabler hostAvailabler;
@@ -34,9 +37,7 @@ public class HTTPClientBuilder {
         checkRequiredField();
         fillHosts();
         fillDefault();
-        Credential credential = buildVolcCredential();
-        HTTPCaller httpCaller = new HTTPCaller(tenantID, token, useAirAuth, credential);
-        return new HTTPClient(httpCaller, hostAvailabler, schema);
+        return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
     }
 
     private void checkRequiredField() {
@@ -79,16 +80,20 @@ public class HTTPClientBuilder {
             schema = "https";
         }
         if (hostAvailabler == null) {
-            PingHostAvailabler.PingHostAvailablerConfig config = new PingHostAvailabler.PingHostAvailablerConfig(hosts);
+            PingHostAvailablerConfig config = new PingHostAvailablerConfig(hosts, hostHeader);
             hostAvailabler = new PingHostAvailabler(config);
         }
-        if (Objects.isNull(hostAvailabler.Hosts()) || hostAvailabler.Hosts().isEmpty()) {
+        if (Objects.isNull(hostAvailabler.hosts()) || hostAvailabler.hosts().isEmpty()) {
             hostAvailabler.setHosts(hosts);
+        }
+        if (Objects.isNull(hostAvailabler.hostHeader()) || hostAvailabler.hostHeader().length() == 0) {
+            hostAvailabler.setHostHeader(hostHeader);
         }
     }
 
-    private Credential buildVolcCredential() {
+    private HTTPCaller newHTTPCaller() {
         String volcCredentialRegion = RegionHelper.getVolcCredentialRegion(region);
-        return new Credential(ak, sk, authService, volcCredentialRegion);
+        Credential cred = new Credential(ak, sk, authService, volcCredentialRegion);
+        return new HTTPCaller(tenantID, token, useAirAuth, hostHeader, cred);
     }
 }

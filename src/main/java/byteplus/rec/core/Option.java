@@ -14,7 +14,7 @@ public interface Option {
             return options;
         }
         for (Option opt : opts) {
-            opt.fill((options));
+            opt.fill(options);
         }
         return options;
     }

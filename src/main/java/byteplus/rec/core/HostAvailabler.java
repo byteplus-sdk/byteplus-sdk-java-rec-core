@@ -4,8 +4,10 @@ import java.util.List;
 
 public interface HostAvailabler {
     List<String> getAvailableHosts();
-    List<String> Hosts();
+    List<String> hosts();
     void setHosts(List<String> hosts);
-    String GetHost();
-    void Shutdown();
+    String hostHeader();
+    void setHostHeader(String hostHeader);
+    String getHost();
+    void shutdown();
 }

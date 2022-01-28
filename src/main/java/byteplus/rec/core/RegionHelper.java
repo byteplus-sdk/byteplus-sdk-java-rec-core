@@ -10,9 +10,10 @@ public class RegionHelper {
     protected static final String REGION_UNKNOWN = "";
     private static final Map<String, RegionConfig> regionConfigMap = new HashMap<>();
 
-    @NoArgsConstructor
     @Setter
     @Getter(AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class RegionConfig {
         private List<String> hosts;
         private String volcCredentialRegion;

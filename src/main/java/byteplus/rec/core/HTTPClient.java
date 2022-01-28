@@ -16,22 +16,22 @@ public class HTTPClient {
             Req request,
             Parser<Rsp> rspParser,
             Options options) throws NetException, BizException {
-        String host = hostAvailabler.GetHost();
+        String host = hostAvailabler.getHost();
         String url = URLCenterHelper.urlCenterInstance(schema, host).getURL(path);
         return httpCaller.doPbRequest(url, request, rspParser, options);
     }
 
-    public <Rsp extends Message> Rsp doJsonRequest(
+    public <Rsp extends Object> Rsp doJsonRequest(
             String path,
             Object request,
-            Parser<Rsp> rspParser,
+            Rsp response,
             Options options) throws NetException, BizException {
-        String host = hostAvailabler.GetHost();
+        String host = hostAvailabler.getHost();
         String url = URLCenterHelper.urlCenterInstance(schema, host).getURL(path);
-        return httpCaller.doJsonRequest(url, request, rspParser, options);
+        return httpCaller.doJsonRequest(url, request, response, options);
     }
 
     public void Shutdown() {
-        hostAvailabler.Shutdown();
+        hostAvailabler.shutdown();
     }
 }
