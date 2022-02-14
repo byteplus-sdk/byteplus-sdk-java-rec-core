@@ -22,13 +22,13 @@ public class PingHostAvailabler implements HostAvailabler{
 
     private static final Duration DEFAULT_PING_TIMEOUT = Duration.ofMillis(200);
 
-    private PingHostAvailablerConfig config;
+    private Config config;
     private List<String> availableHosts;
     private Map<String, Window> hostWindowMap;
     private OkHttpClient httpCli;
     private ScheduledExecutorService executor;
 
-    public PingHostAvailabler(PingHostAvailablerConfig config) {
+    public PingHostAvailabler(Config config) {
         this.config = config;
         availableHosts = config.getHosts();
         if (config.getHosts().size() <= 1) {
@@ -49,7 +49,7 @@ public class PingHostAvailabler implements HostAvailabler{
     @Setter
     @Getter(AccessLevel.PROTECTED)
     @AllArgsConstructor
-    public static class PingHostAvailablerConfig {
+    public static class Config {
         private String pingURLFormat;
         private int windowSize;
         private float failureRateThreshold;
@@ -58,7 +58,7 @@ public class PingHostAvailabler implements HostAvailabler{
         private List<String> hosts;
         private String hostHeader;
 
-        public PingHostAvailablerConfig(List<String> hosts) {
+        public Config(List<String> hosts) {
             pingURLFormat = DEFAULT_PING_URL_FORMAT;
             windowSize = DEFAULT_WINDOW_SIZE;
             failureRateThreshold = DEFAULT_FAILURE_RATE_THRESHOLD;
@@ -67,7 +67,7 @@ public class PingHostAvailabler implements HostAvailabler{
             this.hosts = hosts;
         }
 
-        public PingHostAvailablerConfig(List<String> hosts, String hostHeader) {
+        public Config(List<String> hosts, String hostHeader) {
             pingURLFormat = DEFAULT_PING_URL_FORMAT;
             windowSize = DEFAULT_WINDOW_SIZE;
             failureRateThreshold = DEFAULT_FAILURE_RATE_THRESHOLD;

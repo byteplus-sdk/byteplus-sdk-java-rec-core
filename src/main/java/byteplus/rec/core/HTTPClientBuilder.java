@@ -1,7 +1,7 @@
 package byteplus.rec.core;
 
 import byteplus.rec.core.VoclAuth.Credential;
-import byteplus.rec.core.PingHostAvailabler.PingHostAvailablerConfig;
+import byteplus.rec.core.PingHostAvailabler;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
@@ -29,7 +29,7 @@ public class HTTPClientBuilder {
 
     private String hostHeader;
 
-    private String region;
+    private IRegion region;
 
     private HostAvailabler hostAvailabler;
 
@@ -45,11 +45,8 @@ public class HTTPClientBuilder {
             throw new RuntimeException("Tenant id is null");
         }
         checkAuthRequiredField();
-        if (Objects.isNull(region) || region.equals(RegionHelper.REGION_UNKNOWN)) {
+        if (Objects.isNull(region)) {
             throw new RuntimeException("Region is null");
-        }
-        if (Objects.isNull(RegionHelper.getRegionConfig(region))) {
-            throw new RuntimeException(String.format("region(%s) is not support", region));
         }
     }
 
@@ -72,7 +69,7 @@ public class HTTPClientBuilder {
         if (Objects.nonNull(hosts) && !hosts.isEmpty()) {
             return;
         }
-        hosts = RegionHelper.getRegionHosts(region);
+        hosts = region.getHosts();
     }
 
     private void fillDefault() {
@@ -80,7 +77,7 @@ public class HTTPClientBuilder {
             schema = "https";
         }
         if (hostAvailabler == null) {
-            PingHostAvailablerConfig config = new PingHostAvailablerConfig(hosts, hostHeader);
+            PingHostAvailabler.Config config = new PingHostAvailabler.Config(hosts, hostHeader);
             hostAvailabler = new PingHostAvailabler(config);
         }
         if (Objects.isNull(hostAvailabler.hosts()) || hostAvailabler.hosts().isEmpty()) {
@@ -92,7 +89,7 @@ public class HTTPClientBuilder {
     }
 
     private HTTPCaller newHTTPCaller() {
-        String volcCredentialRegion = RegionHelper.getVolcCredentialRegion(region);
+        String volcCredentialRegion = region.getVolcCredentialRegion();
         Credential cred = new Credential(ak, sk, authService, volcCredentialRegion);
         return new HTTPCaller(tenantID, token, useAirAuth, hostHeader, cred);
     }

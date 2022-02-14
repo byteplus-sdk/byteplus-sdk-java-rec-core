@@ -17,7 +17,7 @@ public class HTTPClient {
             Parser<Rsp> rspParser,
             Options options) throws NetException, BizException {
         String host = hostAvailabler.getHost();
-        String url = URLCenterHelper.urlCenterInstance(schema, host).getURL(path);
+        String url = URLCenter.newInstance(schema, host).getURL(path);
         return httpCaller.doPbRequest(url, request, rspParser, options);
     }
 
@@ -27,7 +27,7 @@ public class HTTPClient {
             Rsp response,
             Options options) throws NetException, BizException {
         String host = hostAvailabler.getHost();
-        String url = URLCenterHelper.urlCenterInstance(schema, host).getURL(path);
+        String url = URLCenter.newInstance(schema, host).getURL(path);
         return httpCaller.doJsonRequest(url, request, response, options);
     }
 
