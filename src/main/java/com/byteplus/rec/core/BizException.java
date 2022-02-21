@@ -1,4 +1,4 @@
-package byteplus.rec.core;
+package com.byteplus.rec.core;
 
 public class BizException extends Exception {
     public BizException(String message) {

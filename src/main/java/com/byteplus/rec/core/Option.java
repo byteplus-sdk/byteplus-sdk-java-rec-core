@@ -1,4 +1,4 @@
-package byteplus.rec.core;
+package com.byteplus.rec.core;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -28,8 +28,8 @@ public interface Option {
         };
     }
 
-    static Option withRequestId(String requestId) {
-        return options -> options.setRequestId(requestId);
+    static Option withRequestID(String requestID) {
+        return options -> options.setRequestID(requestID);
     }
 
     static Option withHeaders(Map<String, String> headers) {
