@@ -1,4 +1,4 @@
-package byteplus.rec.core;
+package com.byteplus.rec.core;
 
 import lombok.Data;
 
@@ -9,7 +9,7 @@ import java.util.Map;
 public class Options {
     private Duration timeout;
 
-    private String RequestId;
+    private String RequestID;
 
     private Map<String, String> headers;
 

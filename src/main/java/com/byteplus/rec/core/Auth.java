@@ -1,4 +1,4 @@
-package byteplus.rec.core;
+package com.byteplus.rec.core;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -13,9 +13,16 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.MessageDigest;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TimeZone;
 
-public class VoclAuth {
+public class Auth {
     private static final TimeZone tz = TimeZone.getTimeZone("UTC");
     private static final Set<String> H_INCLUDE = new HashSet<>();
     private static final String TIME_FORMAT_V4 = "yyyyMMdd'T'HHmmss'Z'";
@@ -62,7 +69,7 @@ public class VoclAuth {
         byte[] signingKey = genSigningSecretKeyV4(
                 credential.getSecretAccessKey(), meta.getDate(), meta.getRegion(), meta.getService());
 
-        String signature = Helper.bytes2Hex(hmacSHA256(signingKey, stringToSign));
+        String signature = Utils.bytes2Hex(hmacSHA256(signingKey, stringToSign));
         headerBuilder.set("Authorization", buildAuthHeaderV4(signature, meta, credential));
         return headerBuilder.build();
     }
@@ -105,7 +112,10 @@ public class VoclAuth {
         return hashSHA256(canonicalRequest.getBytes());
     }
 
-    private static byte[] genSigningSecretKeyV4(String secretKey, String date, String region, String service) throws Exception {
+    private static byte[] genSigningSecretKeyV4(String secretKey,
+                                                String date,
+                                                String region,
+                                                String service) throws Exception {
         byte[] kDate = hmacSHA256((secretKey).getBytes(), date);
         byte[] kRegion = hmacSHA256(kDate, region);
         byte[] kService = hmacSHA256(kRegion, service);
@@ -139,9 +149,7 @@ public class VoclAuth {
         url.queryParameterNames()
                 .stream()
                 .sorted()
-                .forEach(queryName -> {
-                    urlBuilder.setQueryParameter(queryName, finalUrl.queryParameter(queryName));
-                });
+                .forEach(queryName -> urlBuilder.setQueryParameter(queryName, finalUrl.queryParameter(queryName)));
         String sortedQuery = urlBuilder.build().encodedQuery();
         if (Objects.nonNull(sortedQuery)) {
             return sortedQuery.replace("+", "%20");
@@ -152,11 +160,9 @@ public class VoclAuth {
     private static String hashSHA256(byte[] content) throws Exception {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return Helper.bytes2Hex(md.digest(content));
+            return Utils.bytes2Hex(md.digest(content));
         } catch (Exception e) {
-            throw new Exception(
-                    "Unable to compute hash while signing request: "
-                            + e.getMessage(), e);
+            throw new Exception("Unable to compute hash while signing request: " + e.getMessage(), e);
         }
     }
 
@@ -166,9 +172,7 @@ public class VoclAuth {
             mac.init(new SecretKeySpec(key, "HmacSHA256"));
             return mac.doFinal(content.getBytes());
         } catch (Exception e) {
-            throw new Exception(
-                    "Unable to calculate a request signature: "
-                            + e.getMessage(), e);
+            throw new Exception("Unable to calculate a request signature: " + e.getMessage(), e);
         }
     }
 

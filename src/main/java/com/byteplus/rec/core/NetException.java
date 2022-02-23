@@ -1,4 +1,4 @@
-package byteplus.rec.core;
+package com.byteplus.rec.core;
 
 // throw when net timeout
 public class NetException extends Exception {
