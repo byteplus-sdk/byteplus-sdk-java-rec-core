@@ -56,7 +56,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
     }
 
     public PingHostAvailabler(String projectID, List<String> hosts, Config config) throws BizException {
-        super(projectID, hosts, config.closeFetchHostsFromServer, false);
+        super(projectID, hosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
         init();
@@ -146,8 +146,6 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         private Duration pingTimeout;
 
         private int windowSize;
-
-        boolean closeFetchHostsFromServer;
     }
 
     private static class Window {

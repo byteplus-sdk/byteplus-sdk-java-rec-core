@@ -51,8 +51,6 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private final List<String> defaultHosts;
 
-    private final boolean fetchHostsFromServer;
-
     private ScheduledExecutorService executor;
 
     private ScheduledFuture<?> fetchHostsFromServerFuture;
@@ -66,7 +64,6 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
             throw new BizException("default hosts are empty");
         }
         this.defaultHosts = defaultHosts;
-        this.fetchHostsFromServer = false;
         if (initImmediately) {
             init();
         }
@@ -74,7 +71,6 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     public AbstractHostAvailabler(String projectID,
                                   List<String> defaultHosts,
-                                  boolean closeFetchHostsFromServer,
                                   boolean initImmediately) throws BizException {
         if (Objects.isNull(projectID) || projectID.isEmpty()) {
             throw new BizException("project is empty");
@@ -84,7 +80,6 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         }
         this.projectID = projectID;
         this.defaultHosts = defaultHosts;
-        this.fetchHostsFromServer = !closeFetchHostsFromServer;
         if (initImmediately) {
             init();
         }
@@ -93,7 +88,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     protected void init() throws BizException {
         this.setHosts(defaultHosts);
         executor = Executors.newSingleThreadScheduledExecutor();
-        if (fetchHostsFromServer) {
+        if (Objects.nonNull(this.projectID)) {
             fetchHostsHTTPClient = Utils.buildOkHTTPClient(Duration.ofSeconds(5));
             fetchHostsFromServer();
             fetchHostsFromServerFuture = executor.
@@ -126,7 +121,8 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     }
 
     private void fetchHostsFromServer() {
-        String url = String.format("http://%s/data/api/sdk/host?project_id=%s", getHost(), projectID);
+        String host = getHost("*");
+        String url = String.format("http://%s/data/api/sdk/host?project_id=%s", host, projectID);
         for (int i = 0; i < 3; i++) {
             Map<String, List<String>> rspHostConfig = doFetchHostsFromServer(url);
             if (Objects.isNull(rspHostConfig)) {
@@ -137,7 +133,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
                 return;
             }
             if (!rspHostConfig.containsKey("*") || rspHostConfig.get("*").isEmpty()) {
-                log.warn("[ByteplusSDK] hosts from server is empty, url:'{}' config: {}", url, rspHostConfig);
+                log.warn("[ByteplusSDK] no default value in hosts from server, config: {}", rspHostConfig);
                 return;
             }
             doScoreAndUpdateHosts(rspHostConfig);
@@ -170,6 +166,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
                 return JSON.parseObject(rspBodyStr, new TypeReference<Map<String, List<String>>>() {
                 });
             }
+            log.warn("[ByteplusSDK] hosts from server are empty");
             return Collections.emptyMap();
         } catch (Throwable e) {
             long cost = clock.millis() - start;
@@ -280,12 +277,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     }
 
     @Override
-    public String getHost() {
-        return hostConfig.get("*").get(0);
-    }
-
-    @Override
-    public String getHostByPath(String httpPath) {
+    public String getHost(String httpPath) {
         List<String> hosts = hostConfig.get(httpPath);
         if (Objects.isNull(hosts) || hosts.isEmpty()) {
             return hostConfig.get("*").get(0);

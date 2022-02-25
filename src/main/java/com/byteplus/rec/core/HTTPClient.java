@@ -34,12 +34,7 @@ public class HTTPClient {
     }
 
     private String buildURL(String path) {
-        String host;
-        if (Objects.isNull(projectID)) {
-            host = hostAvailabler.getHost();
-        } else {
-            host = hostAvailabler.getHostByPath(path);
-        }
+        String host = hostAvailabler.getHost(path);
         return Utils.buildURL(schema, host, path);
     }
 
