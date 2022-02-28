@@ -1,9 +1,7 @@
 package com.byteplus.rec.core;
 
 public interface HostAvailabler {
-    String getHost();
-
-    String getHostByPath(String httpPath);
+    String getHost(String httpPath);
 
     void shutdown();
 }
