@@ -183,6 +183,9 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         for (String path : paths) {
             List<String> oldPathHosts = this.hostConfig.get(path);
             List<String> newPathHosts = newHostConfig.get(path);
+            if (Objects.isNull(oldPathHosts)) {
+                return false;
+            }
             if (oldPathHosts.size() != newPathHosts.size()) {
                 return false;
             }
@@ -217,11 +220,11 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
             return;
         }
         Map<String, List<String>> newHostConfig = copyAndSortHost(hostConfig, newHostScores);
-        if (isHostConfigNotUpdated(newHostConfig)) {
+        if (isHostConfigNotUpdated(hostConfig, newHostConfig)) {
             log.debug("[ByteplusSDK] host order is not changed, {}", newHostConfig);
             return;
         }
-        log.warn("[ByteplusSDK] set new host config: {}, old config: {}", newHostConfig, this.hostConfig);
+        log.warn("[ByteplusSDK] set new host config: {}, old config: {}", newHostConfig, hostConfig);
         this.hostConfig = newHostConfig;
     }
 
@@ -258,16 +261,17 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         return newHostConfig;
     }
 
-    private boolean isHostConfigNotUpdated(Map<String, List<String>> newHostConfig) {
-        if (Objects.isNull(this.hostConfig)) {
+    private boolean isHostConfigNotUpdated(
+            Map<String, List<String>> oldHostConfig, Map<String, List<String>> newHostConfig) {
+        if (Objects.isNull(oldHostConfig)) {
             return false;
         }
         if (Objects.isNull(newHostConfig)) {
             return true;
         }
-        Set<String> pathSet = this.hostConfig.keySet();
+        Set<String> pathSet = oldHostConfig.keySet();
         for (String path : pathSet) {
-            List<String> oldHosts = this.hostConfig.get(path);
+            List<String> oldHosts = oldHostConfig.get(path);
             List<String> newHosts = newHostConfig.get(path);
             if (!oldHosts.equals(newHosts)) {
                 return false;
