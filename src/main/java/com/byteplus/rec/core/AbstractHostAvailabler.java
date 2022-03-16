@@ -220,7 +220,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
             return;
         }
         Map<String, List<String>> newHostConfig = copyAndSortHost(hostConfig, newHostScores);
-        if (isHostConfigNotUpdated(hostConfig, newHostConfig)) {
+        if (isHostConfigNotUpdated(this.hostConfig, newHostConfig)) {
             log.debug("[ByteplusSDK] host order is not changed, {}", newHostConfig);
             return;
         }

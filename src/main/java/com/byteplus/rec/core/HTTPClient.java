@@ -15,7 +15,6 @@ public class HTTPClient {
     private HTTPCaller httpCaller;
     private HostAvailabler hostAvailabler;
     private String schema;
-    private String projectID;
 
     public <Rsp extends Message, Req extends Message> Rsp doPBRequest(
             String path,
@@ -74,7 +73,7 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
-            return new HTTPClient(newHTTPCaller(), hostAvailabler, schema, projectID);
+            return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 
         private void checkRequiredField() throws BizException {
@@ -120,9 +119,12 @@ public class HTTPClient {
         }
 
         private HTTPCaller newHTTPCaller() {
+            if (useAirAuth) {
+                return new HTTPCaller(tenantID, airAuthToken);
+            }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, airAuthToken, useAirAuth, credential);
+            return new HTTPCaller(tenantID, credential);
         }
     }
 }
