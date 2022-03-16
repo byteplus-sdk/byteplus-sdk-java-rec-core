@@ -6,7 +6,7 @@
 
     <groupId>com.byteplus</groupId>
     <artifactId>byteplus-sdk-java-rec-core</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <name>byteplus-sdk-java-rec-core</name>
