@@ -6,7 +6,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
@@ -36,7 +35,6 @@ import java.util.zip.GZIPOutputStream;
 
 @Slf4j
 @Getter(AccessLevel.PRIVATE)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class HTTPCaller {
     private final static Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
@@ -46,13 +44,24 @@ public class HTTPCaller {
 
     private volatile static Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
 
-    private String tenantID;
-
-    private String token;
+    private final String tenantID;
 
     private boolean useAirAuth;
 
-    private Credential credential;
+    private String airAuthToken;
+
+    private Credential authCredential;
+
+    protected HTTPCaller(String tenantID, String air_auth_token) {
+        this.useAirAuth = true;
+        this.tenantID = tenantID;
+        this.airAuthToken = air_auth_token;
+    }
+
+    protected HTTPCaller(String tenantID, Credential authCredential) {
+        this.tenantID = tenantID;
+        this.authCredential = authCredential;
+    }
 
     protected <Rsp extends Message, Req extends Message> Rsp doPBRequest(
             String url,
@@ -165,7 +174,7 @@ public class HTTPCaller {
         // Splice in the order of "token", "HttpBody", "tenant_id", "ts", and "nonce".
         // The order must not be mistaken.
         // String need to be encoded as byte arrays by UTF-8
-        digest.update(getToken().getBytes(StandardCharsets.UTF_8));
+        digest.update(this.getAirAuthToken().getBytes(StandardCharsets.UTF_8));
         digest.update(httpBody);
         digest.update(getTenantID().getBytes(StandardCharsets.UTF_8));
         digest.update(ts.getBytes(StandardCharsets.UTF_8));
@@ -223,7 +232,7 @@ public class HTTPCaller {
             return withAirAuthHeaders(originHeaders, bodyBytes);
         }
         try {
-            return Auth.sign(request, bodyBytes, getCredential());
+            return Auth.sign(request, bodyBytes, this.getAuthCredential());
         } catch (Exception e) {
             throw new BizException(e.getMessage());
         }
