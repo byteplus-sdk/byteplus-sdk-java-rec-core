@@ -9,7 +9,7 @@ import java.util.Map;
 public class Options {
     private Duration timeout;
 
-    private String RequestID;
+    private String requestID;
 
     private Map<String, String> headers;
 
