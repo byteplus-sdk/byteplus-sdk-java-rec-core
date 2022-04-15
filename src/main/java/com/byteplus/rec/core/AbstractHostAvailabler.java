@@ -49,7 +49,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private String projectID;
 
-    private final List<String> defaultHosts;
+    private List<String> defaultHosts;
 
     private ScheduledExecutorService executor;
 
@@ -107,6 +107,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         if (Objects.isNull(hosts) || hosts.isEmpty()) {
             throw new BizException("host array is empty");
         }
+        this.defaultHosts = hosts;
         stopFetchHostsFromServer();
         doScoreAndUpdateHosts(Collections.singletonMap("*", hosts));
     }
@@ -121,8 +122,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     }
 
     private void fetchHostsFromServer() {
-        String host = getHost("*");
-        String url = String.format("http://%s/data/api/sdk/host?project_id=%s", host, projectID);
+        String url = String.format("http://%s/data/api/sdk/host?project_id=%s", defaultHosts.get(0), projectID);
         for (int i = 0; i < 3; i++) {
             Map<String, List<String>> rspHostConfig = doFetchHostsFromServer(url);
             if (Objects.isNull(rspHostConfig)) {
