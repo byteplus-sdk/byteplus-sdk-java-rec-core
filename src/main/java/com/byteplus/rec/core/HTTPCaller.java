@@ -30,6 +30,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -37,6 +40,8 @@ import java.util.zip.GZIPOutputStream;
 @Getter(AccessLevel.PRIVATE)
 public class HTTPCaller {
     private final static Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+
+    private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
     private final static OkHttpClient defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
 
@@ -52,15 +57,52 @@ public class HTTPCaller {
 
     private Credential authCredential;
 
-    protected HTTPCaller(String tenantID, String air_auth_token) {
+    private final boolean keepAlive;
+
+    private final Duration keepAlivePingInterval;
+
+    private final HostAvailabler hostAvailabler;
+
+    private ScheduledExecutorService heartbeatExecutor;
+
+    protected HTTPCaller(String tenantID, String air_auth_token,
+                         boolean keepAlive, Duration keepAlivePingInterval, HostAvailabler hostAvailabler) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
+        this.keepAlive = keepAlive;
+        this.keepAlivePingInterval = keepAlivePingInterval;
+        this.hostAvailabler = hostAvailabler;
+        if (this.keepAlive) {
+            initHeartbeatExecutor(this.keepAlivePingInterval);
+        }
     }
 
-    protected HTTPCaller(String tenantID, Credential authCredential) {
+    protected HTTPCaller(String tenantID, Credential authCredential,
+                         boolean keepAlive, Duration keepAlivePingInterval, HostAvailabler hostAvailabler) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
+        this.keepAlive = keepAlive;
+        this.keepAlivePingInterval = keepAlivePingInterval;
+        this.hostAvailabler = hostAvailabler;
+        if (this.keepAlive) {
+            initHeartbeatExecutor(this.keepAlivePingInterval);
+        }
+    }
+
+    protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        heartbeatExecutor.scheduleAtFixedRate(this::heartbeat, 1,
+                keepAlivePingInterval.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    private void heartbeat() {
+        for(String host: hostAvailabler.getHosts()) {
+            Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
+            for(OkHttpClient client: timeoutHTTPCliMap.values()) {
+                Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
+            }
+        }
     }
 
     protected <Rsp extends Message, Req extends Message> Rsp doPBRequest(
@@ -317,5 +359,12 @@ public class HTTPCaller {
                     e.getMessage(), url);
         }
         return out.toByteArray();
+    }
+
+    public void shutdown() {
+        if (Objects.isNull(heartbeatExecutor)) {
+            return;
+        }
+        heartbeatExecutor.shutdown();
     }
 }

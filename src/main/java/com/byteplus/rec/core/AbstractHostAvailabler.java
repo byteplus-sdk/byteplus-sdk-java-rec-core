@@ -290,6 +290,11 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     }
 
     @Override
+    public List<String> getHosts() {
+        return distinctHosts(hostConfig);
+    }
+
+    @Override
     public void shutdown() {
         if (Objects.isNull(executor)) {
             return;
