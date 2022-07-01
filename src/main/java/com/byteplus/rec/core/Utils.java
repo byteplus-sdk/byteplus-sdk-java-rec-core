@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class Utils {
@@ -68,6 +69,8 @@ public class Utils {
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout)
+                // default maxIdleConnections is 5
+                .connectionPool(new ConnectionPool(32, 30, TimeUnit.SECONDS))
                 .build();
     }
 
