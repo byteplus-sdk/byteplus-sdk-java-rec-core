@@ -79,11 +79,12 @@ public class HTTPClient {
         // OkHttp will disconnect for a maximum of one minute, keepAlivePingInterval should be less than this value.
         private Duration keepAlivePingInterval;
 
+        // maxIdleConnections parameter of ConnectionPool in OkHttpClient.
         private int maxIdleConnections;
 
         // If you want to customize the OKHTTPClient, you can pass in this parameter,
         // and all subsequent requests from the client will use this incoming OKHTTPClient.
-        private OkHttpClient okHTTPClient;
+        private OkHttpClient callerClient;
 
         public HTTPClient build() throws BizException {
             checkRequiredField();
