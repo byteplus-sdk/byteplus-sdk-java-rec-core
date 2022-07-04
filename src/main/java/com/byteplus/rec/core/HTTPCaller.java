@@ -30,6 +30,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -38,7 +41,11 @@ import java.util.zip.GZIPOutputStream;
 public class HTTPCaller {
     private final static Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
-    private final static OkHttpClient defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
+    private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
+
+    private static final Duration DEFAULT_KEEPALIVE_PING_INTERVAL = Duration.ofSeconds(5);
+
+    private final OkHttpClient defaultHTTPCli;
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -52,15 +59,72 @@ public class HTTPCaller {
 
     private Credential authCredential;
 
-    protected HTTPCaller(String tenantID, String air_auth_token) {
+    private final HostAvailabler hostAvailabler;
+
+    private final OkHttpClient customCallerClient;
+
+    private final boolean keepAlive;
+
+    private Duration keepAlivePingInterval = DEFAULT_KEEPALIVE_PING_INTERVAL;
+
+    private ScheduledExecutorService heartbeatExecutor;
+
+    protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
+                         OkHttpClient callerClient, boolean keepAlive) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
+        this.hostAvailabler = hostAvailabler;
+        this.customCallerClient = callerClient;
+        this.keepAlive = keepAlive;
+        if (this.keepAlive) {
+            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
+            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
+                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
+            }
+            initHeartbeatExecutor(this.keepAlivePingInterval);
+        }
+        if (Objects.nonNull(this.customCallerClient)) {
+            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
+        } else {
+            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
+        }
     }
 
-    protected HTTPCaller(String tenantID, Credential authCredential) {
+    protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
+                         OkHttpClient callerClient, boolean keepAlive) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
+        this.hostAvailabler = hostAvailabler;
+        this.customCallerClient = callerClient;
+        this.keepAlive = keepAlive;
+        if (this.keepAlive) {
+            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
+            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
+                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
+            }
+            initHeartbeatExecutor(this.keepAlivePingInterval);
+        }
+        if (Objects.nonNull(this.customCallerClient)) {
+            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
+        } else {
+            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
+        }
+    }
+
+    protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        heartbeatExecutor.scheduleAtFixedRate(this::heartbeat, 1,
+                keepAlivePingInterval.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    private void heartbeat() {
+        for(String host: hostAvailabler.getHosts()) {
+            Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
+            for(OkHttpClient client: timeoutHTTPCliMap.values()) {
+                Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
+            }
+        }
     }
 
     protected <Rsp extends Message, Req extends Message> Rsp doPBRequest(
@@ -271,7 +335,11 @@ public class HTTPCaller {
             if (Objects.nonNull(httpClient)) {
                 return httpClient;
             }
-            httpClient = Utils.buildOkHTTPClient(timeout);
+            if (Objects.nonNull(customCallerClient)) {
+                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout);
+            } else {
+                httpClient = Utils.buildOkHTTPClient(timeout);
+            }
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);
             timeoutHTTPCliMapTemp.put(timeout, httpClient);
@@ -317,5 +385,12 @@ public class HTTPCaller {
                     e.getMessage(), url);
         }
         return out.toByteArray();
+    }
+
+    public void shutdown() {
+        if (Objects.isNull(heartbeatExecutor)) {
+            return;
+        }
+        heartbeatExecutor.shutdown();
     }
 }

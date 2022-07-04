@@ -88,7 +88,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
                 window = new Window(config.windowSize);
                 hostWindowMap.put(host, window);
             }
-            window.put(doPing(host));
+            window.put(Utils.ping(httpCli, config.getPingURLFormat(), host));
         }
         return hosts.stream()
                 .map(host -> {
@@ -96,44 +96,6 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
                     return new HostAvailabilityScore(host, score);
                 })
                 .collect(Collectors.toList());
-    }
-
-    private boolean doPing(String host) {
-        String url = String.format(config.getPingURLFormat(), host);
-        Headers.Builder builder = new Headers.Builder();
-        Headers headers = builder.build();
-        Request httpReq = new Request.Builder()
-                .url(url)
-                .headers(headers)
-                .get()
-                .build();
-        Call httpCall = httpCli.newCall(httpReq);
-        long start = clock.millis();
-        try (Response httpRsp = httpCall.execute()) {
-            long cost = clock.millis() - start;
-            if (isPingSuccess(httpRsp)) {
-                log.debug("[ByteplusSDK] ping success, host:{} cost:{}ms", host, cost);
-                return true;
-            }
-            log.warn("[ByteplusSDK] ping fail, host:{} cost:{}ms status:{}", host, cost, httpRsp.code());
-            return false;
-        } catch (Throwable e) {
-            long cost = clock.millis() - start;
-            log.warn("[ByteplusSDK] ping find err, host:'{}' cost:{}ms err:'{}'", host, cost, e.toString());
-            return false;
-        }
-    }
-
-    private boolean isPingSuccess(Response httpRsp) throws IOException {
-        if (httpRsp.code() != Constant.HTTP_STATUS_OK) {
-            return false;
-        }
-        ResponseBody rspBody = httpRsp.body();
-        if (Objects.isNull(rspBody)) {
-            return false;
-        }
-        String rspStr = new String(rspBody.bytes(), StandardCharsets.UTF_8);
-        return rspStr.length() < 20 && rspStr.contains("pong");
     }
 
     @Getter

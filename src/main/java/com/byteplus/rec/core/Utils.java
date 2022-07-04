@@ -2,14 +2,22 @@ package com.byteplus.rec.core;
 
 import com.google.protobuf.Message;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
+import okhttp3.*;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class Utils {
+    private final static Clock clock = Clock.systemDefaultZone();
+
+    private final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
+
     public interface Callable<Rsp extends Message, Req> {
         Rsp call(Req req, Option... opts) throws BizException, NetException;
     }
@@ -58,12 +66,73 @@ public class Utils {
     }
 
     public static OkHttpClient buildOkHTTPClient(Duration timeout) {
-        return new OkHttpClient.Builder()
+        return buildOkHTTPClient(timeout, DEFAULT_MAX_IDLE_CONNECTIONS);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(Duration timeout, int maxIdleConnections) {
+        if (maxIdleConnections <= 0) {
+            maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
+        return doBuild(new OkHttpClient.Builder(), timeout, maxIdleConnections);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(OkHttpClient client, Duration timeout) {
+        return buildOkHTTPClient(client, timeout, DEFAULT_MAX_IDLE_CONNECTIONS);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(OkHttpClient client, Duration timeout, int maxIdleConnections) {
+        if (maxIdleConnections <= 0) {
+            maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
+        return doBuild(client.newBuilder(), timeout, maxIdleConnections);
+    }
+
+    private static OkHttpClient doBuild(OkHttpClient.Builder okHTTPBuilder, Duration timeout, int maxIdleConnections) {
+        return okHTTPBuilder
                 .connectTimeout(timeout)
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout)
+                .connectionPool(new ConnectionPool(maxIdleConnections, 30, TimeUnit.SECONDS))
                 .build();
+    }
+
+    public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String host) {
+        String url = String.format(pingURLFormat, host);
+        Headers.Builder builder = new Headers.Builder();
+        Headers headers = builder.build();
+        Request httpReq = new Request.Builder()
+                .url(url)
+                .headers(headers)
+                .get()
+                .build();
+        Call httpCall = httpCli.newCall(httpReq);
+        long start = clock.millis();
+        try (Response httpRsp = httpCall.execute()) {
+            long cost = clock.millis() - start;
+            if (isPingSuccess(httpRsp)) {
+                log.debug("[ByteplusSDK] ping success, host:{} cost:{}ms", host, cost);
+                return true;
+            }
+            log.warn("[ByteplusSDK] ping fail, host:{} cost:{}ms status:{}", host, cost, httpRsp.code());
+            return false;
+        } catch (Throwable e) {
+            long cost = clock.millis() - start;
+            log.warn("[ByteplusSDK] ping find err, host:'{}' cost:{}ms err:'{}'", host, cost, e.toString());
+            return false;
+        }
+    }
+
+    private static boolean isPingSuccess(Response httpRsp) throws IOException {
+        if (httpRsp.code() != Constant.HTTP_STATUS_OK) {
+            return false;
+        }
+        ResponseBody rspBody = httpRsp.body();
+        if (Objects.isNull(rspBody)) {
+            return false;
+        }
+        String rspStr = new String(rspBody.bytes(), StandardCharsets.UTF_8);
+        return rspStr.length() < 20 && rspStr.contains("pong");
     }
 
     public static boolean noneEmptyString(String... str) {
