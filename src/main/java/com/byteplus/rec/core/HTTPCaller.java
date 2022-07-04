@@ -61,30 +61,34 @@ public class HTTPCaller {
 
     private final Duration keepAlivePingInterval;
 
+    private final int maxIdleConnections;
+
     private final HostAvailabler hostAvailabler;
 
     private ScheduledExecutorService heartbeatExecutor;
 
-    protected HTTPCaller(String tenantID, String air_auth_token,
-                         boolean keepAlive, Duration keepAlivePingInterval, HostAvailabler hostAvailabler) {
+    protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
+                         boolean keepAlive, Duration keepAlivePingInterval, int maxIdleConnections) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
         this.hostAvailabler = hostAvailabler;
+        this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
     }
 
-    protected HTTPCaller(String tenantID, Credential authCredential,
-                         boolean keepAlive, Duration keepAlivePingInterval, HostAvailabler hostAvailabler) {
+    protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
+                         boolean keepAlive, Duration keepAlivePingInterval, int maxIdleConnections) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
         this.hostAvailabler = hostAvailabler;
+        this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
@@ -313,7 +317,7 @@ public class HTTPCaller {
             if (Objects.nonNull(httpClient)) {
                 return httpClient;
             }
-            httpClient = Utils.buildOkHTTPClient(timeout);
+            httpClient = Utils.buildOkHTTPClient(timeout, maxIdleConnections);
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);
             timeoutHTTPCliMapTemp.put(timeout, httpClient);

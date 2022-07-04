@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 public class Utils {
     private final static Clock clock = Clock.systemDefaultZone();
 
+    private final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
+
     public interface Callable<Rsp extends Message, Req> {
         Rsp call(Req req, Option... opts) throws BizException, NetException;
     }
@@ -64,13 +66,19 @@ public class Utils {
     }
 
     public static OkHttpClient buildOkHTTPClient(Duration timeout) {
+        return buildOkHTTPClient(timeout, DEFAULT_MAX_IDLE_CONNECTIONS);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(Duration timeout, int maxIdleConnections) {
+        if (maxIdleConnections <= 0) {
+            maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
         return new OkHttpClient.Builder()
                 .connectTimeout(timeout)
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout)
-                // default maxIdleConnections is 5
-                .connectionPool(new ConnectionPool(32, 30, TimeUnit.SECONDS))
+                .connectionPool(new ConnectionPool(maxIdleConnections, 30, TimeUnit.SECONDS))
                 .build();
     }
 

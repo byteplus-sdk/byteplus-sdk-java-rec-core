@@ -78,6 +78,8 @@ public class HTTPClient {
         // OkHttp will disconnect for a maximum of one minute, keepAlivePingInterval should be less than this value.
         private Duration keepAlivePingInterval;
 
+        private int maxIdleConnections;
+
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
@@ -134,11 +136,13 @@ public class HTTPClient {
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, keepAlive, keepAlivePingInterval, hostAvailabler);
+                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler,
+                        keepAlive, keepAlivePingInterval, maxIdleConnections);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, keepAlive, keepAlivePingInterval, hostAvailabler);
+            return new HTTPCaller(tenantID, credential, hostAvailabler,
+                    keepAlive, keepAlivePingInterval, maxIdleConnections);
         }
     }
 }
