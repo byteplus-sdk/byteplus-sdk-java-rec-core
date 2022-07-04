@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import okhttp3.OkHttpClient;
 
 import java.time.Duration;
 import java.util.List;
@@ -80,6 +81,10 @@ public class HTTPClient {
 
         private int maxIdleConnections;
 
+        // If you want to customize the OKHTTPClient, you can pass in this parameter,
+        // and all subsequent requests from the client will use this incoming OKHTTPClient.
+        private OkHttpClient okHTTPClient;
+
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
@@ -136,12 +141,12 @@ public class HTTPClient {
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler,
+                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, okHTTPClient,
                         keepAlive, keepAlivePingInterval, maxIdleConnections);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, hostAvailabler,
+            return new HTTPCaller(tenantID, credential, hostAvailabler, okHTTPClient,
                     keepAlive, keepAlivePingInterval, maxIdleConnections);
         }
     }

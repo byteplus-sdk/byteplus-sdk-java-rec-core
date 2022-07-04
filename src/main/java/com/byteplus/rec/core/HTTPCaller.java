@@ -57,24 +57,28 @@ public class HTTPCaller {
 
     private Credential authCredential;
 
+    private final HostAvailabler hostAvailabler;
+
+    private final OkHttpClient customOKHTTPClient;
+
     private final boolean keepAlive;
 
     private final Duration keepAlivePingInterval;
 
     private final int maxIdleConnections;
 
-    private final HostAvailabler hostAvailabler;
-
     private ScheduledExecutorService heartbeatExecutor;
 
     protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
-                         boolean keepAlive, Duration keepAlivePingInterval, int maxIdleConnections) {
+                         OkHttpClient okHttpClient, boolean keepAlive, Duration keepAlivePingInterval,
+                         int maxIdleConnections) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
+        this.hostAvailabler = hostAvailabler;
+        this.customOKHTTPClient = okHttpClient;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
-        this.hostAvailabler = hostAvailabler;
         this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
@@ -82,12 +86,14 @@ public class HTTPCaller {
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
-                         boolean keepAlive, Duration keepAlivePingInterval, int maxIdleConnections) {
+                         OkHttpClient okHttpClient, boolean keepAlive, Duration keepAlivePingInterval,
+                         int maxIdleConnections) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
+        this.hostAvailabler = hostAvailabler;
+        this.customOKHTTPClient = okHttpClient;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
-        this.hostAvailabler = hostAvailabler;
         this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
@@ -102,6 +108,11 @@ public class HTTPCaller {
 
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
+            // if customOKHTTPClient is not null, only use customOKHTTPClient;
+            if (Objects.nonNull(customOKHTTPClient)) {
+                Utils.ping(customOKHTTPClient, DEFAULT_PING_URL_FORMAT, host);
+                continue;
+            }
             Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
             for(OkHttpClient client: timeoutHTTPCliMap.values()) {
                 Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
@@ -305,6 +316,9 @@ public class HTTPCaller {
     }
 
     private OkHttpClient selectHTTPClient(Duration timeout) {
+        if (Objects.nonNull(customOKHTTPClient)) {
+            return customOKHTTPClient;
+        }
         if (Objects.isNull(timeout) || timeout.isZero()) {
             return defaultHTTPCli;
         }
