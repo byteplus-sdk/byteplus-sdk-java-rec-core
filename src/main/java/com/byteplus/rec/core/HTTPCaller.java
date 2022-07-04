@@ -43,6 +43,8 @@ public class HTTPCaller {
 
     private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
+    private static final Duration DEFAULT_KEEPALIVE_PING_INTERVAL = Duration.ofSeconds(5);
+
     private final OkHttpClient defaultHTTPCli;
 
     private final Clock clock = Clock.systemDefaultZone();
@@ -63,24 +65,23 @@ public class HTTPCaller {
 
     private final boolean keepAlive;
 
-    private final Duration keepAlivePingInterval;
-
-    private final int maxIdleConnections;
+    private Duration keepAlivePingInterval = DEFAULT_KEEPALIVE_PING_INTERVAL;
 
     private ScheduledExecutorService heartbeatExecutor;
 
     protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive, Duration keepAlivePingInterval,
-                         int maxIdleConnections) {
+                         OkHttpClient callerClient, boolean keepAlive) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
         this.hostAvailabler = hostAvailabler;
         this.customCallerClient = callerClient;
         this.keepAlive = keepAlive;
-        this.keepAlivePingInterval = keepAlivePingInterval;
-        this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
+            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
+            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
+                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
+            }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
         if (Objects.nonNull(this.customCallerClient)) {
@@ -91,16 +92,17 @@ public class HTTPCaller {
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive, Duration keepAlivePingInterval,
-                         int maxIdleConnections) {
+                         OkHttpClient callerClient, boolean keepAlive) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
         this.hostAvailabler = hostAvailabler;
         this.customCallerClient = callerClient;
         this.keepAlive = keepAlive;
-        this.keepAlivePingInterval = keepAlivePingInterval;
-        this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
+            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
+            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
+                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
+            }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
         if (Objects.nonNull(this.customCallerClient)) {
@@ -334,9 +336,9 @@ public class HTTPCaller {
                 return httpClient;
             }
             if (Objects.nonNull(customCallerClient)) {
-                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout, maxIdleConnections);
+                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout);
             } else {
-                httpClient = Utils.buildOkHTTPClient(timeout, maxIdleConnections);
+                httpClient = Utils.buildOkHTTPClient(timeout);
             }
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);

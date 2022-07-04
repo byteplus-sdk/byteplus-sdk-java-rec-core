@@ -75,13 +75,6 @@ public class HTTPClient {
 
         private boolean keepAlive;
 
-        // The interval at which keepAlive sends heartbeat packets, which only takes effect when keepAlive is true.
-        // OkHttp will disconnect for a maximum of one minute, keepAlivePingInterval should be less than this value.
-        private Duration keepAlivePingInterval;
-
-        // maxIdleConnections parameter of ConnectionPool in OkHttpClient.
-        private int maxIdleConnections;
-
         // If you want to customize the OKHTTPClient, you can pass in this parameter,
         // and all subsequent requests from the client will use this incoming OKHTTPClient.
         private OkHttpClient callerClient;
@@ -121,12 +114,6 @@ public class HTTPClient {
             if (Objects.isNull(schema) || schema.equals("")) {
                 schema = "https";
             }
-            if (keepAlive) {
-                if (Objects.isNull(keepAlivePingInterval)) {
-                    // if keepAlive is true and user does not set keepAliveDuration, set keepAliveDuration = 24 hours.
-                    keepAlivePingInterval = Duration.ofSeconds(5);
-                }
-            }
             if (hostAvailabler == null) {
                 if (Utils.isNotEmptyList(hosts)) {
                     hostAvailabler = new PingHostAvailabler(hosts);
@@ -142,13 +129,11 @@ public class HTTPClient {
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, callerClient,
-                        keepAlive, keepAlivePingInterval, maxIdleConnections);
+                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, callerClient, keepAlive);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, hostAvailabler, callerClient,
-                    keepAlive, keepAlivePingInterval, maxIdleConnections);
+            return new HTTPCaller(tenantID, credential, hostAvailabler, callerClient, keepAlive);
         }
     }
 }
