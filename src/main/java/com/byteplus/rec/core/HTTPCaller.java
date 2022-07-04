@@ -43,7 +43,7 @@ public class HTTPCaller {
 
     private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
-    private final static OkHttpClient defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
+    private final OkHttpClient defaultHTTPCli;
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -59,7 +59,7 @@ public class HTTPCaller {
 
     private final HostAvailabler hostAvailabler;
 
-    private final OkHttpClient customOKHTTPClient;
+    private final OkHttpClient customCallerClient;
 
     private final boolean keepAlive;
 
@@ -70,33 +70,43 @@ public class HTTPCaller {
     private ScheduledExecutorService heartbeatExecutor;
 
     protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
-                         OkHttpClient okHttpClient, boolean keepAlive, Duration keepAlivePingInterval,
+                         OkHttpClient callerClient, boolean keepAlive, Duration keepAlivePingInterval,
                          int maxIdleConnections) {
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
         this.hostAvailabler = hostAvailabler;
-        this.customOKHTTPClient = okHttpClient;
+        this.customCallerClient = callerClient;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
         this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
+        if (Objects.nonNull(this.customCallerClient)) {
+            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
+        } else {
+            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
+        }
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
-                         OkHttpClient okHttpClient, boolean keepAlive, Duration keepAlivePingInterval,
+                         OkHttpClient callerClient, boolean keepAlive, Duration keepAlivePingInterval,
                          int maxIdleConnections) {
         this.tenantID = tenantID;
         this.authCredential = authCredential;
         this.hostAvailabler = hostAvailabler;
-        this.customOKHTTPClient = okHttpClient;
+        this.customCallerClient = callerClient;
         this.keepAlive = keepAlive;
         this.keepAlivePingInterval = keepAlivePingInterval;
         this.maxIdleConnections = maxIdleConnections;
         if (this.keepAlive) {
             initHeartbeatExecutor(this.keepAlivePingInterval);
+        }
+        if (Objects.nonNull(this.customCallerClient)) {
+            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
+        } else {
+            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
         }
     }
 
@@ -108,11 +118,6 @@ public class HTTPCaller {
 
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
-            // if customOKHTTPClient is not null, only use customOKHTTPClient;
-            if (Objects.nonNull(customOKHTTPClient)) {
-                Utils.ping(customOKHTTPClient, DEFAULT_PING_URL_FORMAT, host);
-                continue;
-            }
             Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
             for(OkHttpClient client: timeoutHTTPCliMap.values()) {
                 Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
@@ -316,9 +321,6 @@ public class HTTPCaller {
     }
 
     private OkHttpClient selectHTTPClient(Duration timeout) {
-        if (Objects.nonNull(customOKHTTPClient)) {
-            return customOKHTTPClient;
-        }
         if (Objects.isNull(timeout) || timeout.isZero()) {
             return defaultHTTPCli;
         }
@@ -331,7 +333,11 @@ public class HTTPCaller {
             if (Objects.nonNull(httpClient)) {
                 return httpClient;
             }
-            httpClient = Utils.buildOkHTTPClient(timeout, maxIdleConnections);
+            if (Objects.nonNull(customCallerClient)) {
+                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout, maxIdleConnections);
+            } else {
+                httpClient = Utils.buildOkHTTPClient(timeout, maxIdleConnections);
+            }
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);
             timeoutHTTPCliMapTemp.put(timeout, httpClient);

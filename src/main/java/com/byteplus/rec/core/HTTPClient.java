@@ -142,12 +142,12 @@ public class HTTPClient {
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, okHTTPClient,
+                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, callerClient,
                         keepAlive, keepAlivePingInterval, maxIdleConnections);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, hostAvailabler, okHTTPClient,
+            return new HTTPCaller(tenantID, credential, hostAvailabler, callerClient,
                     keepAlive, keepAlivePingInterval, maxIdleConnections);
         }
     }

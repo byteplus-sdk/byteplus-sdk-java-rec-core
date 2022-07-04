@@ -73,7 +73,22 @@ public class Utils {
         if (maxIdleConnections <= 0) {
             maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
         }
-        return new OkHttpClient.Builder()
+        return doBuild(new OkHttpClient.Builder(), timeout, maxIdleConnections);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(OkHttpClient client, Duration timeout) {
+        return buildOkHTTPClient(client, timeout, DEFAULT_MAX_IDLE_CONNECTIONS);
+    }
+
+    public static OkHttpClient buildOkHTTPClient(OkHttpClient client, Duration timeout, int maxIdleConnections) {
+        if (maxIdleConnections <= 0) {
+            maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
+        return doBuild(client.newBuilder(), timeout, maxIdleConnections);
+    }
+
+    private static OkHttpClient doBuild(OkHttpClient.Builder okHTTPBuilder, Duration timeout, int maxIdleConnections) {
+        return okHTTPBuilder
                 .connectTimeout(timeout)
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
