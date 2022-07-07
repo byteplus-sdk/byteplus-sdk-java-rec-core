@@ -86,7 +86,7 @@ public class Utils {
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout)
-                .connectionPool(new ConnectionPool(maxIdleConnections, 1000 * 60, TimeUnit.MICROSECONDS))
+                .connectionPool(new ConnectionPool(maxIdleConnections, 60, TimeUnit.SECONDS))
                 .build();
     }
 
