@@ -80,13 +80,15 @@ public class Utils {
     }
 
     private static OkHttpClient doBuild(OkHttpClient.Builder okHTTPBuilder, Duration timeout) {
-        return okHTTPBuilder
+        okHTTPBuilder
                 .connectTimeout(timeout)
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
-                .callTimeout(timeout)
-                .eventListenerFactory(NetworkListener.get())
-                .build();
+                .callTimeout(timeout);
+        if (log.isDebugEnabled()) {
+            okHTTPBuilder.eventListenerFactory(NetworkListener.get());
+        }
+        return okHTTPBuilder.build();
     }
 
     public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String host) {
@@ -103,7 +105,7 @@ public class Utils {
         long start = clock.millis();
         try (Response httpRsp = httpCall.execute()) {
             long cost = clock.millis() - start;
-            log.debug("sent: {}, received: {}, cost:{}, connection count:{}",
+            log.debug("[ByteplusSDK][ping] sent: {}, received: {}, cost:{}, connection count:{}",
                     httpRsp.sentRequestAtMillis(), httpRsp.receivedResponseAtMillis(),
                     cost, httpCli.connectionPool().connectionCount());
             if (isPingSuccess(httpRsp)) {
