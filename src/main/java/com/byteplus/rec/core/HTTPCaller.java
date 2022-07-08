@@ -274,7 +274,7 @@ public class HTTPCaller {
             if (Objects.isNull(rspEncoding) || !rspEncoding.contains("gzip")) {
                 return rspBody.bytes();
             }
-            log.debug("sent:{}, received:{}, cost:{}, start:{}, end:{}, start->sent: {}, connection count:{}, header:{}",
+            log.debug("[ByteplusSDK][HTTPCaller] sent:{}, received:{}, cost:{}, start:{}, end:{}, start->sent: {}, connection count:{}, header:{}",
                     response.sentRequestAtMillis(), response.receivedResponseAtMillis(),
                     response.receivedResponseAtMillis() - response.sentRequestAtMillis(),
                     start,
