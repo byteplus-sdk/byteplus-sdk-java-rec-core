@@ -10,13 +10,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class Utils {
     private final static Clock clock = Clock.systemDefaultZone();
-
-    private final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
 
     public interface Callable<Rsp extends Message, Req> {
         Rsp call(Req req, Option... opts) throws BizException, NetException;
@@ -66,28 +65,18 @@ public class Utils {
     }
 
     public static OkHttpClient buildOkHTTPClient(Duration timeout) {
-        return buildOkHTTPClient(timeout, DEFAULT_MAX_IDLE_CONNECTIONS);
-    }
-
-    public static OkHttpClient buildOkHTTPClient(Duration timeout, int maxIdleConnections) {
-        if (maxIdleConnections <= 0) {
-            maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
-        }
-        return doBuild(new OkHttpClient.Builder(), timeout, maxIdleConnections);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectionPool(new ConnectionPool(
+                        Constant.DEFAULT_MAX_IDLE_CONNECTIONS,
+                        Constant.DEFAULT_KEEPALIVE_PING_INTERVAL.toMillis(),
+                        TimeUnit.MILLISECONDS)
+                )
+                .build();
+        return buildOkHTTPClient(client, timeout);
     }
 
     public static OkHttpClient buildOkHTTPClient(OkHttpClient client, Duration timeout) {
         return doBuild(client.newBuilder(), timeout);
-    }
-
-    private static OkHttpClient doBuild(OkHttpClient.Builder okHTTPBuilder, Duration timeout, int maxIdleConnections) {
-        return okHTTPBuilder
-                .connectTimeout(timeout)
-                .writeTimeout(timeout)
-                .readTimeout(timeout)
-                .callTimeout(timeout)
-                .connectionPool(new ConnectionPool(maxIdleConnections, 60, TimeUnit.SECONDS))
-                .build();
     }
 
     private static OkHttpClient doBuild(OkHttpClient.Builder okHTTPBuilder, Duration timeout) {
@@ -96,12 +85,14 @@ public class Utils {
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout)
+                .eventListenerFactory(NetworkListener.get())
                 .build();
     }
 
     public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String host) {
         String url = String.format(pingURLFormat, host);
         Headers.Builder builder = new Headers.Builder();
+        builder.set("Request-Id", "ping_" + UUID.randomUUID().toString());
         Headers headers = builder.build();
         Request httpReq = new Request.Builder()
                 .url(url)
@@ -112,6 +103,9 @@ public class Utils {
         long start = clock.millis();
         try (Response httpRsp = httpCall.execute()) {
             long cost = clock.millis() - start;
+            log.debug("sent: {}, received: {}, cost:{}, connection count:{}",
+                    httpRsp.sentRequestAtMillis(), httpRsp.receivedResponseAtMillis(),
+                    cost, httpCli.connectionPool().connectionCount());
             if (isPingSuccess(httpRsp)) {
                 log.debug("[ByteplusSDK] ping success, host:{} cost:{}ms", host, cost);
                 return true;

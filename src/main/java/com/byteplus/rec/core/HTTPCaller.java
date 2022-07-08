@@ -43,8 +43,6 @@ public class HTTPCaller {
 
     private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
-    private static final Duration DEFAULT_KEEPALIVE_PING_INTERVAL = Duration.ofSeconds(5);
-
     private final OkHttpClient defaultHTTPCli;
 
     private final Clock clock = Clock.systemDefaultZone();
@@ -65,7 +63,7 @@ public class HTTPCaller {
 
     private final boolean keepAlive;
 
-    private Duration keepAlivePingInterval = DEFAULT_KEEPALIVE_PING_INTERVAL;
+    private Duration keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
 
     private ScheduledExecutorService heartbeatExecutor;
 
@@ -251,6 +249,7 @@ public class HTTPCaller {
                                  Headers headers,
                                  byte[] bodyBytes,
                                  Duration timeout) throws NetException, BizException {
+        long start = System.currentTimeMillis();
         Request request = new Request.Builder()
                 .url(url)
                 .headers(headers)
@@ -275,6 +274,14 @@ public class HTTPCaller {
             if (Objects.isNull(rspEncoding) || !rspEncoding.contains("gzip")) {
                 return rspBody.bytes();
             }
+            log.debug("sent:{}, received:{}, cost:{}, start:{}, end:{}, start->sent: {}, connection count:{}, header:{}",
+                    response.sentRequestAtMillis(), response.receivedResponseAtMillis(),
+                    response.receivedResponseAtMillis() - response.sentRequestAtMillis(),
+                    start,
+                    System.currentTimeMillis(),
+                    response.sentRequestAtMillis() - start,
+                    selectHTTPClient(timeout).connectionPool().connectionCount(),
+                    response.headers());
             return gzipDecompress(rspBody.bytes(), url);
         } catch (IOException e) {
             if (e.getMessage().toLowerCase().contains("timeout")) {
