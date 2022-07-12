@@ -85,9 +85,9 @@ public class Utils {
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout);
-        if (log.isDebugEnabled()) {
-            okHTTPBuilder.eventListenerFactory(NetworkListener.get());
-        }
+        //if (log.isDebugEnabled()) {
+        okHTTPBuilder.eventListenerFactory(NetworkListener.get());
+        //}
         return okHTTPBuilder.build();
     }
 
