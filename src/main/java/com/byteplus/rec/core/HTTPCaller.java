@@ -47,7 +47,7 @@ public class HTTPCaller {
 
     private final Clock clock = Clock.systemDefaultZone();
 
-    private volatile static Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
+    private volatile Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
 
     private final String tenantID;
 
