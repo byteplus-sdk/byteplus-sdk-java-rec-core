@@ -68,7 +68,7 @@ public class Utils {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(
                         Constant.DEFAULT_MAX_IDLE_CONNECTIONS,
-                        Constant.DEFAULT_KEEPALIVE_PING_INTERVAL.toMillis(),
+                        Constant.DEFAULT_KEEPALIVE_DURATION.toMillis(),
                         TimeUnit.MILLISECONDS)
                 )
                 .build();

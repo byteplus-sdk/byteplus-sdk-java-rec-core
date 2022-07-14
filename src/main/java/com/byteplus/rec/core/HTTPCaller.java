@@ -43,7 +43,7 @@ public class HTTPCaller {
 
     private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
-    private final OkHttpClient defaultHTTPCli;
+    private static OkHttpClient defaultHTTPCli;
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -82,11 +82,6 @@ public class HTTPCaller {
             }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
-        if (Objects.nonNull(this.customCallerClient)) {
-            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
-        } else {
-            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
-        }
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
@@ -103,11 +98,6 @@ public class HTTPCaller {
             }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
-        if (Objects.nonNull(this.customCallerClient)) {
-            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
-        } else {
-            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
-        }
     }
 
     protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
@@ -118,7 +108,9 @@ public class HTTPCaller {
 
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
-            Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
+            if (Objects.nonNull(defaultHTTPCli)) {
+                Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
+            }
             for(OkHttpClient client: timeoutHTTPCliMap.values()) {
                 Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
             }
@@ -331,6 +323,9 @@ public class HTTPCaller {
 
     private OkHttpClient selectHTTPClient(Duration timeout) {
         if (Objects.isNull(timeout) || timeout.isZero()) {
+            if (Objects.isNull(defaultHTTPCli)) {
+                initializeDefaultClient();
+            }
             return defaultHTTPCli;
         }
         OkHttpClient httpClient = timeoutHTTPCliMap.get(timeout);
@@ -352,6 +347,14 @@ public class HTTPCaller {
             timeoutHTTPCliMapTemp.put(timeout, httpClient);
             timeoutHTTPCliMap = timeoutHTTPCliMapTemp;
             return httpClient;
+        }
+    }
+
+    private void initializeDefaultClient() {
+        if (Objects.nonNull(this.customCallerClient)) {
+            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
+        } else {
+            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
         }
     }
 
