@@ -9,11 +9,22 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.UnknownHostException;
 import java.util.List;
 
 
 @Slf4j
 public class NetworkListener extends EventListener {
+    static InetAddress addr;
+
+    static {
+        try {
+            addr = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Factory get() {
         return new Factory() {
             @NotNull
@@ -26,94 +37,111 @@ public class NetworkListener extends EventListener {
 
     @Override
     public void callStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, callStart={}, url={}",
-                call.request().headers("Request-Id"), System.currentTimeMillis(), call.request().url());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callStart={}, url={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis(), call.request().url());
     }
 
     @Override
     public void dnsStart(@NotNull Call call, @NotNull String domainName) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, dnsStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, dnsStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void dnsEnd(@NotNull Call call, @NotNull String domainName, @NotNull List<InetAddress> inetAddressList) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, dnsEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, dnsEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void connectStart(@NotNull Call call, @NotNull InetSocketAddress inetSocketAddress, @NotNull Proxy proxy) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, connectStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void secureConnectStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, secureConnectStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, secureConnectStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void secureConnectEnd(@NotNull Call call, @Nullable Handshake handshake) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, secureConnectEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, secureConnectEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void connectEnd(@NotNull Call call, @NotNull InetSocketAddress inetSocketAddress,
                            @NotNull Proxy proxy, @Nullable Protocol protocol) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, connectEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void connectFailed(@NotNull Call call, @NotNull InetSocketAddress inetSocketAddress, @NotNull Proxy proxy, @Nullable Protocol protocol, @NotNull IOException ioe) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, connectFailed={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectFailed={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void requestHeadersStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, requestHeadersStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestHeadersStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void requestHeadersEnd(@NotNull Call call, @NotNull Request request) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, requestHeadersEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestHeadersEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void requestBodyStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, requestBodyStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestBodyStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void requestBodyEnd(@NotNull Call call, long byteCount) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, requestBodyEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestBodyEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void responseHeadersStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, responseHeadersStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseHeadersStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void responseHeadersEnd(@NotNull Call call, @NotNull Response response) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, responseHeadersEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseHeadersEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void responseBodyStart(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, responseBodyStart={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseBodyStart={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void responseBodyEnd(@NotNull Call call, long byteCount) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, responseBodyEnd={}", call.request().headers("Request-Id"), System.currentTimeMillis());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseBodyEnd={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis());
     }
 
     @Override
     public void callEnd(@NotNull Call call) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, callEnd={}, url={}", call.request().headers("Request-Id"), System.currentTimeMillis(), call.request().url());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callEnd={}, url={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis(), call.request().url());
     }
 
     @Override
     public void callFailed(@NotNull Call call, @NotNull IOException ioe) {
-        log.debug("[ByteplusSDK][NetworkListener] request id={}, callFailed={}, err={}", call.request().headers("Request-Id"), System.currentTimeMillis(), ioe.getMessage());
+        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callFailed={}, err={}",
+                addr, call.request().headers("Request-Id"), System.currentTimeMillis(), ioe.getMessage());
     }
 
 }

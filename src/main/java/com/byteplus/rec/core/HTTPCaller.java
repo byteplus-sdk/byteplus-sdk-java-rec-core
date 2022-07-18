@@ -43,11 +43,9 @@ public class HTTPCaller {
 
     private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
 
-    private final OkHttpClient defaultHTTPCli;
-
     private final Clock clock = Clock.systemDefaultZone();
 
-    private volatile static Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
+    private volatile Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
 
     private final String tenantID;
 
@@ -82,11 +80,6 @@ public class HTTPCaller {
             }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
-        if (Objects.nonNull(this.customCallerClient)) {
-            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
-        } else {
-            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
-        }
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
@@ -103,11 +96,6 @@ public class HTTPCaller {
             }
             initHeartbeatExecutor(this.keepAlivePingInterval);
         }
-        if (Objects.nonNull(this.customCallerClient)) {
-            defaultHTTPCli = Utils.buildOkHTTPClient(this.customCallerClient, DEFAULT_TIMEOUT);
-        } else {
-            defaultHTTPCli = Utils.buildOkHTTPClient(DEFAULT_TIMEOUT);
-        }
     }
 
     protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
@@ -118,7 +106,6 @@ public class HTTPCaller {
 
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
-            Utils.ping(defaultHTTPCli, DEFAULT_PING_URL_FORMAT, host);
             for(OkHttpClient client: timeoutHTTPCliMap.values()) {
                 Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
             }
@@ -331,7 +318,7 @@ public class HTTPCaller {
 
     private OkHttpClient selectHTTPClient(Duration timeout) {
         if (Objects.isNull(timeout) || timeout.isZero()) {
-            return defaultHTTPCli;
+            timeout = DEFAULT_TIMEOUT;
         }
         OkHttpClient httpClient = timeoutHTTPCliMap.get(timeout);
         if (Objects.nonNull(httpClient)) {
