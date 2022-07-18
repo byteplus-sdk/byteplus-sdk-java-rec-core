@@ -25,8 +25,11 @@ public final class Constant {
     // The server hope slow down request frequency, and this request was rejected
     public final static int STATUS_CODE_TOO_MANY_REQUEST = 429;
 
+    // The default keepalive duration
+    public final static Duration DEFAULT_KEEPALIVE_DURATION = Duration.ofSeconds(60);
+
     // The default keepalive ping interval
-    public final static Duration DEFAULT_KEEPALIVE_PING_INTERVAL = Duration.ofSeconds(60);
+    public final static Duration DEFAULT_KEEPALIVE_PING_INTERVAL = Duration.ofSeconds(45);
 
     // The default max idle connections of okhttp client connection pool
     public final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
