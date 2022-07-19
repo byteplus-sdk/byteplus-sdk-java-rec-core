@@ -64,6 +64,18 @@ public class Utils {
         return String.format("%s://%s/%s", schema, host, path);
     }
 
+    public static OkHttpClient buildOkHTTPClient(Duration timeout, int maxIdleConnections,
+                                                 Duration keepAliveDuration) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectionPool(new ConnectionPool(
+                        maxIdleConnections,
+                        keepAliveDuration.toMillis(),
+                        TimeUnit.MILLISECONDS)
+                )
+                .build();
+        return buildOkHTTPClient(client, timeout);
+    }
+
     public static OkHttpClient buildOkHTTPClient(Duration timeout) {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(
@@ -91,8 +103,8 @@ public class Utils {
         return okHTTPBuilder.build();
     }
 
-    public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String host) {
-        String url = String.format(pingURLFormat, host);
+    public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String schema, String host) {
+        String url = String.format(pingURLFormat, schema, host);
         Headers.Builder builder = new Headers.Builder();
         builder.set("Request-Id", "ping_" + UUID.randomUUID().toString());
         Headers headers = builder.build();

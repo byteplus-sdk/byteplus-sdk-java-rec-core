@@ -5,8 +5,7 @@ import com.alibaba.fastjson.JSON;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
-import lombok.AccessLevel;
-import lombok.Getter;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Headers;
@@ -41,7 +40,7 @@ import java.util.zip.GZIPOutputStream;
 public class HTTPCaller {
     private final static Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
-    private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
+    private static final String DEFAULT_PING_URL_FORMAT = "%s://%s/predict/api/ping";
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -57,45 +56,53 @@ public class HTTPCaller {
 
     private final HostAvailabler hostAvailabler;
 
-    private final OkHttpClient customCallerClient;
+    private final Config config;
+
+    private final String schema;
 
     private final boolean keepAlive;
-
-    private Duration keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
 
     private ScheduledExecutorService heartbeatExecutor;
 
     protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive) {
+                         Config callerConfig, String schema, boolean keepAlive) {
+        this.config = fillDefaultConfig(callerConfig);
         this.useAirAuth = true;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
         this.hostAvailabler = hostAvailabler;
-        this.customCallerClient = callerClient;
+        this.schema = schema;
         this.keepAlive = keepAlive;
         if (this.keepAlive) {
-            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
-            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
-                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
-            }
-            initHeartbeatExecutor(this.keepAlivePingInterval);
+            initHeartbeatExecutor(this.config.getKeepAlivePingInterval());
         }
     }
 
     protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive) {
+                         Config callerConfig, String schema, boolean keepAlive) {
+        this.config = fillDefaultConfig(callerConfig);
         this.tenantID = tenantID;
         this.authCredential = authCredential;
         this.hostAvailabler = hostAvailabler;
-        this.customCallerClient = callerClient;
+        this.schema = schema;
         this.keepAlive = keepAlive;
         if (this.keepAlive) {
-            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
-            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
-                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
-            }
-            initHeartbeatExecutor(this.keepAlivePingInterval);
+            initHeartbeatExecutor(this.config.getKeepAlivePingInterval());
         }
+    }
+
+    private Config fillDefaultConfig(Config config) {
+        config = config.toBuilder().build();
+        if (config.maxIdleConnections <= 0) {
+            config.maxIdleConnections = Constant.DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
+        if (Objects.isNull(config.keepAliveDuration) || config.keepAliveDuration.isZero()) {
+            config.keepAliveDuration = Constant.DEFAULT_KEEPALIVE_DURATION;
+        }
+        if (Objects.isNull(config.keepAlivePingInterval) || config.keepAlivePingInterval.isZero()) {
+            config.keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
+        }
+        return config;
     }
 
     protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
@@ -107,7 +114,7 @@ public class HTTPCaller {
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
             for(OkHttpClient client: timeoutHTTPCliMap.values()) {
-                Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
+                Utils.ping(client, DEFAULT_PING_URL_FORMAT, schema, host);
             }
         }
     }
@@ -329,11 +336,7 @@ public class HTTPCaller {
             if (Objects.nonNull(httpClient)) {
                 return httpClient;
             }
-            if (Objects.nonNull(customCallerClient)) {
-                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout);
-            } else {
-                httpClient = Utils.buildOkHTTPClient(timeout);
-            }
+            httpClient = Utils.buildOkHTTPClient(timeout, config.maxIdleConnections, config.keepAliveDuration);
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);
             timeoutHTTPCliMapTemp.put(timeout, httpClient);
@@ -386,5 +389,22 @@ public class HTTPCaller {
             return;
         }
         heartbeatExecutor.shutdown();
+    }
+
+    @Getter
+    @Builder(toBuilder = true)
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Config {
+        private int maxIdleConnections;
+
+        private Duration keepAliveDuration;
+
+        private Duration keepAlivePingInterval;
+    }
+
+    protected static Config getDefaultConfig() {
+        return new Config(Constant.DEFAULT_MAX_IDLE_CONNECTIONS,
+                Constant.DEFAULT_KEEPALIVE_DURATION, Constant.DEFAULT_KEEPALIVE_PING_INTERVAL);
     }
 }
