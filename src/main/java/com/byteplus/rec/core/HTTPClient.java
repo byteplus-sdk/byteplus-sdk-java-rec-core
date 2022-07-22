@@ -1,5 +1,7 @@
 package com.byteplus.rec.core;
 
+import com.byteplus.rec.core.metrics.MetricsCollector;
+import com.byteplus.rec.core.metrics.MetricsOption;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import lombok.AccessLevel;
@@ -77,8 +79,9 @@ public class HTTPClient {
 
         private HTTPCaller.Config callerConfig;
 
-        @Deprecated
         private HostAvailabler hostAvailabler;
+
+        private List<MetricsOption> metricsOptions;
 
         @Deprecated
         // If you want to customize the OKHTTPClient, you can pass in this parameter,
@@ -88,6 +91,8 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
+            MetricsCollector.setHostAvailabler(hostAvailabler);
+            MetricsCollector.Init(metricsOptions.toArray(new MetricsOption[0]));
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 
@@ -141,11 +146,11 @@ public class HTTPClient {
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, callerConfig, schema, keepAlive);
+                return new HTTPCaller(projectID, tenantID, airAuthToken, hostAvailabler, callerConfig, schema, keepAlive);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, hostAvailabler, callerConfig, schema, keepAlive);
+            return new HTTPCaller(projectID, tenantID, credential, hostAvailabler, callerConfig, schema, keepAlive);
         }
     }
 }
