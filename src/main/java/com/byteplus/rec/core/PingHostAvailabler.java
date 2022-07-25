@@ -79,7 +79,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
                 window = new Window(config.windowSize);
                 hostWindowMap.put(host, window);
             }
-            window.put(Utils.ping(httpCli, config.getPingURLFormat(), DEFAULT_PING_SCHEMA, host));
+            window.put(Utils.ping(projectID, httpCli, config.getPingURLFormat(), DEFAULT_PING_SCHEMA, host));
         }
         return hosts.stream()
                 .map(host -> {

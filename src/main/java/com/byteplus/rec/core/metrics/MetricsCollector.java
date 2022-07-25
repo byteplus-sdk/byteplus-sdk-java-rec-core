@@ -6,8 +6,10 @@ import com.byteplus.rec.core.metrics.protocol.SdkMetrics.Metric;
 import com.byteplus.rec.core.metrics.protocol.SdkMetrics.MetricMessage;
 import com.byteplus.rec.core.metrics.protocol.SdkMetrics.MetricLog;
 import com.byteplus.rec.core.metrics.protocol.SdkMetrics.MetricLogMessage;
-import lombok.Data;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -34,6 +36,17 @@ public class MetricsCollector {
         MetricsCollector.hostAvailabler = hostAvailabler;
     }
 
+    public static void Init(MetricsCfg metricsConfig) {
+        if (initialed.get()) {
+            return;
+        }
+        metricsCfg = metricsConfig;
+        if (Objects.isNull(metricsConfig)) {
+            metricsCfg = new MetricsCfg();
+        }
+        doInit();
+    }
+
     public static void Init(MetricsOption... opts) {
         if (initialed.get()) {
             return;
@@ -43,7 +56,10 @@ public class MetricsCollector {
         for (MetricsOption opt : opts) {
             opt.fill((metricsCfg));
         }
+        doInit();
+    }
 
+    private static void doInit() {
         // initialize metrics reporter
         metricsReporter = new MetricsReporter(metricsCfg);
         // initialize metrics collector
@@ -56,19 +72,19 @@ public class MetricsCollector {
                 return;
             }
             reportExecutor = Executors.newSingleThreadScheduledExecutor();
-            reportExecutor.scheduleAtFixedRate(MetricsCollector::report, metricsCfg.flushIntervalMs,
-                    metricsCfg.flushIntervalMs, TimeUnit.MILLISECONDS);
+            reportExecutor.scheduleAtFixedRate(MetricsCollector::report, metricsCfg.reportInterval.toMillis(),
+                    metricsCfg.reportInterval.toMillis(), TimeUnit.MILLISECONDS);
         }
     }
 
-    static boolean isEnableMetrics() {
+    public static boolean isEnableMetrics() {
         if (Objects.isNull(metricsCfg)) {
             return false;
         }
         return metricsCfg.isEnableMetrics();
     }
 
-    static boolean isEnableMetricsLog() {
+    public static boolean isEnableMetricsLog() {
         if (Objects.isNull(metricsCfg)) {
             return false;
         }
@@ -91,6 +107,10 @@ public class MetricsCollector {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+        if (metricsCollector.size() > MAX_METRICS_SIZE) {
+            log.debug("[MetricsCollector]: The number of metrics exceeds the limit, the metrics write is rejected");
+            return;
         }
         String metricName = name;
         if (metricsCfg.getPrefix().length() > 0) {
@@ -136,6 +156,10 @@ public class MetricsCollector {
                 e.printStackTrace();
             }
         }
+        if (metricsLogCollector.size() > MAX_METRICS_LOG_SIZE) {
+            log.debug("[MetricsCollector]: The number of metrics logs exceeds the limit, the metrics log write is rejected");
+            return;
+        }
         MetricLog metricLog = MetricLog.newBuilder()
                 .setId(logID)
                 .setMessage(message)
@@ -167,6 +191,7 @@ public class MetricsCollector {
             }
             metrics.add(metric);
         }
+        System.out.println(Arrays.toString(metrics.toArray()));
         cleaningMetricsCollector = false;
         doReportMetrics(metrics);
     }
@@ -220,19 +245,23 @@ public class MetricsCollector {
         try {
             metricsReporter.report(metricLogMessage, url);
         } catch (BizException e) {
+            System.out.println(e.getMessage());
             log.error("[BytePlusSDK][Metrics] report metrics log exception, msg:{}, url:{}", e.getMessage(), url);
         }
     }
 
-    @Data
-    static class MetricsCfg {
+    @Getter
+    @Setter
+    @Builder(toBuilder = true)
+    @AllArgsConstructor
+    public static class MetricsCfg {
         private boolean enableMetrics;
         private boolean enableMetricsLog;
         private String domain;
         private String prefix;
         private String httpSchema;
-        private long flushIntervalMs;
-        private long httpTimeoutMs;
+        private Duration reportInterval;
+        private Duration httpTimeout;
 
         // build default metricsCfg
         public MetricsCfg() {
@@ -241,8 +270,8 @@ public class MetricsCollector {
             this.setDomain(DEFAULT_METRICS_DOMAIN);
             this.setPrefix(DEFAULT_METRICS_PREFIX);
             this.setHttpSchema(DEFAULT_METRICS_HTTP_SCHEMA);
-            this.setFlushIntervalMs(DEFAULT_FLUSH_INTERVAL_MS);
-            this.setHttpTimeoutMs(DEFAULT_HTTP_TIMEOUT_MS);
+            this.setReportInterval(DEFAULT_REPORT_INTERVAL);
+            this.setHttpTimeout(DEFAULT_HTTP_TIMEOUT);
         }
     }
 }

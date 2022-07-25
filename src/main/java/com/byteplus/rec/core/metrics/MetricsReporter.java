@@ -19,9 +19,9 @@ public class MetricsReporter {
 
     protected MetricsReporter(MetricsCfg metricsCfg) {
         httpCli = new OkHttpClient.Builder()
-                .connectTimeout(metricsCfg.getHttpTimeoutMs(), TimeUnit.MILLISECONDS)
-                .writeTimeout(metricsCfg.getHttpTimeoutMs(), TimeUnit.MILLISECONDS)
-                .readTimeout(metricsCfg.getHttpTimeoutMs(), TimeUnit.MILLISECONDS)
+                .connectTimeout(metricsCfg.getHttpTimeout().toMillis(), TimeUnit.MILLISECONDS)
+                .writeTimeout(metricsCfg.getHttpTimeout().toMillis(), TimeUnit.MILLISECONDS)
+                .readTimeout(metricsCfg.getHttpTimeout().toMillis(), TimeUnit.MILLISECONDS)
                 .retryOnConnectionFailure(true)
                 .build();
     }

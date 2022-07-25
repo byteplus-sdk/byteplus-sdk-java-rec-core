@@ -1,7 +1,7 @@
 package com.byteplus.rec.core;
 
 import com.byteplus.rec.core.metrics.MetricsCollector;
-import com.byteplus.rec.core.metrics.MetricsOption;
+import com.byteplus.rec.core.metrics.MetricsCollector.MetricsCfg;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import lombok.AccessLevel;
@@ -73,7 +73,7 @@ public class HTTPClient {
 
         private IRegion region;
 
-        private AbstractHostAvailablerFactory hostAvailablerFactory;
+        private HostAvailablerFactory hostAvailablerFactory;
 
         private boolean keepAlive;
 
@@ -81,7 +81,7 @@ public class HTTPClient {
 
         private HostAvailabler hostAvailabler;
 
-        private List<MetricsOption> metricsOptions;
+        private MetricsCfg metricsCfg;
 
         @Deprecated
         // If you want to customize the OKHTTPClient, you can pass in this parameter,
@@ -92,7 +92,7 @@ public class HTTPClient {
             checkRequiredField();
             fillDefault();
             MetricsCollector.setHostAvailabler(hostAvailabler);
-            MetricsCollector.Init(metricsOptions.toArray(new MetricsOption[0]));
+            MetricsCollector.Init(metricsCfg);
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 
@@ -127,7 +127,7 @@ public class HTTPClient {
             }
             // fill hostAvailabler.
             if (Objects.isNull(hostAvailablerFactory)) {
-                hostAvailablerFactory = new AbstractHostAvailablerFactory();
+                hostAvailablerFactory = new HostAvailablerFactory();
             }
             if (Utils.isNotEmptyList(hosts)) {
                 hostAvailabler = hostAvailablerFactory.newHostAvailabler(hosts);

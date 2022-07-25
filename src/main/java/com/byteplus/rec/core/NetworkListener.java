@@ -50,8 +50,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, callStart=%d, url=%s",
                 getProjectID(call), addr, currentTimestamp, call.request().url());
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callStart={}, url={}",
-                addr, getReqID(call), currentTimestamp, call.request().url());
     }
 
     @Override
@@ -64,8 +62,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, dnsStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, dnsStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -73,8 +69,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, dnsEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, dnsEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -87,8 +81,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, connectStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -101,8 +93,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, secureConnectStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, secureConnectStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -110,8 +100,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, secureConnectEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, secureConnectEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -120,8 +108,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, connectEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -129,8 +115,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, connectFailed=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, connectFailed={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -138,8 +122,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, requestHeadersStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestHeadersStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -147,8 +129,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, requestHeadersEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestHeadersEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -156,8 +136,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, requestBodyStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestBodyStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -165,8 +143,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, requestBodyEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, requestBodyEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -174,8 +150,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, responseHeadersStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseHeadersStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -183,8 +157,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, responseHeadersEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseHeadersEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -192,8 +164,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, responseBodyStart=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseBodyStart={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -201,8 +171,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, responseBodyEnd=%d",
                 getProjectID(call), addr, currentTimestamp);
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, responseBodyEnd={}",
-                addr, getReqID(call), currentTimestamp);
     }
 
     @Override
@@ -210,8 +178,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, callEnd=%d, url=%s",
                 getProjectID(call), addr, currentTimestamp, call.request().url());
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callEnd={}, url={}",
-                addr, getReqID(call), currentTimestamp, call.request().url());
     }
 
     @Override
@@ -219,8 +185,6 @@ public class NetworkListener extends EventListener {
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, callFailed=%d, err=%s",
                 getProjectID(call), addr, currentTimestamp, ioe.getMessage());
-        log.debug("[ByteplusSDK][NetworkListener] host={}, request id={}, callFailed={}, err={}",
-                addr, getReqID(call), currentTimestamp, ioe.getMessage());
     }
 
 }

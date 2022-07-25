@@ -41,6 +41,5 @@ public final class Constant {
     public final static String METRICS_KEY_NETWORK_DNS_START = "network.dns.start";
     public final static String METRICS_KEY_NETWORK_CONNECT_START = "network.connect.start";
     public final static String METRICS_KEY_NETWORK_SECURE_CONNECT_START = "network.secure.connect.start";
-    public final static String METRICS_KEY_PING_COUNT = "ping.count";
-    public final static String METRICS_KEY_PING_COST = "ping.cost";
+    public final static String METRICS_KEY_HEART_BIT_COUNT = "heartbeat.count";
 }

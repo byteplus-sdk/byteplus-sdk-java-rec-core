@@ -2,6 +2,7 @@ package com.byteplus.rec.core.metrics;
 
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -19,10 +20,10 @@ public class MetricsExample {
                 MetricsOption.withMetricsHttpSchema("http"),
                 MetricsOption.enableMetrics(),
                 MetricsOption.enableMetricsLog(),
-                MetricsOption.withFlushIntervalMs(5 * 1000),
+                MetricsOption.withReportInterval(Duration.ofSeconds(5)),
                 MetricsOption.withMetricsPrefix("test.byteplus.sdk"),
-                MetricsOption.withMetricsTimeout(1000), //metrics http request timeout
-                MetricsOption.withMetricsDomain("10.244.249.165:9245") //sg metrics domain
+                MetricsOption.withMetricsTimeout(Duration.ofSeconds(1)), //metrics http request timeout
+                MetricsOption.withMetricsDomain("10.244.245.79:9235") //sg metrics domain
         );
     }
 
@@ -81,6 +82,6 @@ public class MetricsExample {
 //        counterReport();
 //        storeReport();
 //        timerReport();
-        //MetricsLog.info(String.valueOf(UUID.randomUUID()), "this is a test log: %d", 1);
+          MetricsLog.info(String.valueOf(UUID.randomUUID()), "this is a test log: %d", 2);
     }
 }

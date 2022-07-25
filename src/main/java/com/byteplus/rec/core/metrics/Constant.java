@@ -1,6 +1,8 @@
 package com.byteplus.rec.core.metrics;
 
 
+import java.time.Duration;
+
 public class Constant {
     // metrics default domain and prefix
     public static final String DEFAULT_METRICS_DOMAIN = "rec-api-sg1.recplusapi.com";
@@ -16,15 +18,19 @@ public class Constant {
     public static final String METRICS_LOG_PATH = "/monitor/metrics/log";
 
     // metrics flush interval
-    public static final int DEFAULT_FLUSH_INTERVAL_MS = 15 * 1000;
+    public static final Duration DEFAULT_REPORT_INTERVAL = Duration.ofSeconds(15);
 
-    public final static int DEFAULT_HTTP_TIMEOUT_MS = 800;
+    public final static Duration DEFAULT_HTTP_TIMEOUT = Duration.ofMillis(800);
 
     public final static int MAX_TRY_TIMES = 3;
 
     public final static int MAX_SPIN_TIMES = 5;
 
     public final static int SUCCESS_HTTP_CODE = 200;
+
+    public final static int MAX_METRICS_SIZE = 10000;
+
+    public final static int MAX_METRICS_LOG_SIZE = 5000;
 
     // metrics log level
     public final static String LOG_LEVEL_TRACE = "trace";
