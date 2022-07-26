@@ -1,5 +1,7 @@
 package com.byteplus.rec.core;
 
+import com.byteplus.rec.core.metrics.MetricsCollector;
+import com.byteplus.rec.core.metrics.MetricsCollector.MetricsCfg;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import lombok.AccessLevel;
@@ -71,10 +73,17 @@ public class HTTPClient {
 
         private IRegion region;
 
-        private HostAvailabler hostAvailabler;
+        private HostAvailablerFactory hostAvailablerFactory;
 
         private boolean keepAlive;
 
+        private HTTPCaller.Config callerConfig;
+
+        private HostAvailabler hostAvailabler;
+
+        private MetricsCfg metricsCfg;
+
+        @Deprecated
         // If you want to customize the OKHTTPClient, you can pass in this parameter,
         // and all subsequent requests from the client will use this incoming OKHTTPClient.
         private OkHttpClient callerClient;
@@ -82,6 +91,8 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
+            MetricsCollector.setHostAvailabler(hostAvailabler);
+            MetricsCollector.Init(metricsCfg);
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 
@@ -114,26 +125,32 @@ public class HTTPClient {
             if (Objects.isNull(schema) || schema.equals("")) {
                 schema = "https";
             }
-            if (hostAvailabler == null) {
-                if (Utils.isNotEmptyList(hosts)) {
-                    hostAvailabler = new PingHostAvailabler(hosts);
+            // fill hostAvailabler.
+            if (Objects.isNull(hostAvailablerFactory)) {
+                hostAvailablerFactory = new HostAvailablerFactory();
+            }
+            if (Utils.isNotEmptyList(hosts)) {
+                hostAvailabler = hostAvailablerFactory.newHostAvailabler(hosts);
+            } else {
+                if (Objects.nonNull(projectID) && !projectID.isEmpty()) {
+                    hostAvailabler = hostAvailablerFactory.newHostAvailabler(projectID, region.getHosts());
                 } else {
-                    if (Objects.nonNull(projectID) && !projectID.isEmpty()) {
-                        hostAvailabler = new PingHostAvailabler(projectID, region.getHosts());
-                    } else {
-                        hostAvailabler = new PingHostAvailabler(region.getHosts());
-                    }
+                    hostAvailabler = hostAvailablerFactory.newHostAvailabler(region.getHosts());
                 }
+            }
+            // fill default caller config.
+            if (Objects.isNull(callerConfig)) {
+                callerConfig = HTTPCaller.getDefaultConfig();
             }
         }
 
         private HTTPCaller newHTTPCaller() {
             if (useAirAuth) {
-                return new HTTPCaller(tenantID, airAuthToken, hostAvailabler, callerClient, keepAlive);
+                return new HTTPCaller(projectID, tenantID, airAuthToken, hostAvailabler, callerConfig, schema, keepAlive);
             }
             String authRegion = region.getAuthRegion();
             Auth.Credential credential = new Auth.Credential(authAK, authSK, authService, authRegion);
-            return new HTTPCaller(tenantID, credential, hostAvailabler, callerClient, keepAlive);
+            return new HTTPCaller(projectID, tenantID, credential, hostAvailabler, callerConfig, schema, keepAlive);
         }
     }
 }

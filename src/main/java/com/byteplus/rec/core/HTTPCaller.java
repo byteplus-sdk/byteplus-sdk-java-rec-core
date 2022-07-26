@@ -2,11 +2,12 @@ package com.byteplus.rec.core;
 
 import com.byteplus.rec.core.Auth.Credential;
 import com.alibaba.fastjson.JSON;
+import com.byteplus.rec.core.metrics.Metrics;
+import com.byteplus.rec.core.metrics.MetricsLog;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
-import lombok.AccessLevel;
-import lombok.Getter;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Headers;
@@ -41,11 +42,15 @@ import java.util.zip.GZIPOutputStream;
 public class HTTPCaller {
     private final static Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
-    private static final String DEFAULT_PING_URL_FORMAT = "https://%s/predict/api/ping";
+    private static final String DEFAULT_PING_URL_FORMAT = "%s://%s/predict/api/ping";
 
     private final Clock clock = Clock.systemDefaultZone();
 
     private volatile Map<Duration, OkHttpClient> timeoutHTTPCliMap = new HashMap<>();
+
+    private final ThreadLocal<String> requestID = new ThreadLocal<>();
+
+    private final String projectID;
 
     private final String tenantID;
 
@@ -57,45 +62,59 @@ public class HTTPCaller {
 
     private final HostAvailabler hostAvailabler;
 
-    private final OkHttpClient customCallerClient;
+    private final Config config;
+
+    private final String schema;
 
     private final boolean keepAlive;
 
-    private Duration keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
-
     private ScheduledExecutorService heartbeatExecutor;
 
-    protected HTTPCaller(String tenantID, String air_auth_token, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive) {
+    protected HTTPCaller(String projectID, String tenantID, String air_auth_token,
+                         HostAvailabler hostAvailabler, Config callerConfig, String schema, boolean keepAlive) {
+        this.config = fillDefaultConfig(callerConfig);
         this.useAirAuth = true;
+        this.projectID = projectID;
         this.tenantID = tenantID;
         this.airAuthToken = air_auth_token;
         this.hostAvailabler = hostAvailabler;
-        this.customCallerClient = callerClient;
+        this.schema = schema;
         this.keepAlive = keepAlive;
         if (this.keepAlive) {
-            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
-            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
-                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
-            }
-            initHeartbeatExecutor(this.keepAlivePingInterval);
+            initHeartbeatExecutor(this.config.getKeepAlivePingInterval());
         }
     }
 
-    protected HTTPCaller(String tenantID, Credential authCredential, HostAvailabler hostAvailabler,
-                         OkHttpClient callerClient, boolean keepAlive) {
+    protected HTTPCaller(String projectID, String tenantID, Credential authCredential,
+                         HostAvailabler hostAvailabler, Config callerConfig, String schema, boolean keepAlive) {
+        this.config = fillDefaultConfig(callerConfig);
+        this.projectID = projectID;
         this.tenantID = tenantID;
         this.authCredential = authCredential;
         this.hostAvailabler = hostAvailabler;
-        this.customCallerClient = callerClient;
+        this.schema = schema;
         this.keepAlive = keepAlive;
         if (this.keepAlive) {
-            // If the client has a custom okHTTPClient and has pingInterval set, use the value set by the client.
-            if (Objects.nonNull(this.customCallerClient) && this.customCallerClient.pingIntervalMillis() > 0) {
-                this.keepAlivePingInterval = Duration.ofMillis(this.customCallerClient.pingIntervalMillis());
-            }
-            initHeartbeatExecutor(this.keepAlivePingInterval);
+            initHeartbeatExecutor(this.config.getKeepAlivePingInterval());
         }
+    }
+
+    private String getReqID() {
+        return this.requestID.get();
+    }
+
+    private Config fillDefaultConfig(Config config) {
+        config = config.toBuilder().build();
+        if (config.maxIdleConnections <= 0) {
+            config.maxIdleConnections = Constant.DEFAULT_MAX_IDLE_CONNECTIONS;
+        }
+        if (Objects.isNull(config.keepAliveDuration) || config.keepAliveDuration.isZero()) {
+            config.keepAliveDuration = Constant.DEFAULT_KEEPALIVE_DURATION;
+        }
+        if (Objects.isNull(config.keepAlivePingInterval) || config.keepAlivePingInterval.isZero()) {
+            config.keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
+        }
+        return config;
     }
 
     protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
@@ -106,8 +125,17 @@ public class HTTPCaller {
 
     private void heartbeat() {
         for(String host: hostAvailabler.getHosts()) {
-            for(OkHttpClient client: timeoutHTTPCliMap.values()) {
-                Utils.ping(client, DEFAULT_PING_URL_FORMAT, host);
+            for(Map.Entry<Duration, OkHttpClient> entry: timeoutHTTPCliMap.entrySet()) {
+                long timeoutMs = entry.getKey().toMillis();
+                OkHttpClient client = entry.getValue();
+                String[] metricsTags = new String[] {
+                        "from:http_caller",
+                        "project_id:" + getProjectID(),
+                        "timeout:" + timeoutMs,
+                        "host:" + Utils.escapeMetricsTagValue(host)
+                };
+                Metrics.counter(Constant.METRICS_KEY_HEARTBEAT_COUNT, 1, metricsTags);
+                Utils.ping(getProjectID(), client, DEFAULT_PING_URL_FORMAT, schema, host);
             }
         }
     }
@@ -123,6 +151,13 @@ public class HTTPCaller {
         try {
             return rspParser.parseFrom(rspBytes);
         } catch (InvalidProtocolBufferException e) {
+            String[] metricsTags = new String[]{
+                    "type:parse_response_fail",
+                    "project_id:" + getProjectID()
+            };
+            Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+            MetricsLog.error(getReqID(),"[ByteplusSDK]parse response fail, project_id:%s, url:%s err:%s ",
+                    getProjectID(), url, e.getMessage());
             log.error("[ByteplusSDK]parse response fail, url:{} err:{} ", url, e.getMessage());
             throw new BizException("parse response fail");
         }
@@ -174,6 +209,8 @@ public class HTTPCaller {
         builder.set("Content-Type", contentType);
         builder.set("Accept", contentType);
         builder.set("Tenant-Id", getTenantID());
+        // for metrics
+        builder.set("Project-Id", getProjectID());
         withOptionHeaders(builder, options);
         return builder.build();
     }
@@ -201,8 +238,9 @@ public class HTTPCaller {
         if (Objects.nonNull(options.getHeaders())) {
             options.getHeaders().forEach(builder::set);
         }
-        if (Objects.isNull(options.getRequestID())) {
-            String requestID = UUID.randomUUID().toString();
+        String requestID = options.getRequestID();
+        if (Objects.isNull(requestID)) {
+            requestID = UUID.randomUUID().toString();
             log.info("[ByteplusSDK] requestID is generated by sdk: '{}'", requestID);
             builder.set("Request-Id", requestID);
         } else {
@@ -211,6 +249,7 @@ public class HTTPCaller {
         if (Objects.nonNull(options.getServerTimeout())) {
             builder.set("Timeout-Millis", options.getServerTimeout().toMillis() + "");
         }
+        this.requestID.set(requestID);
     }
 
     private String calSignature(byte[] httpBody, String ts, String nonce) {
@@ -257,30 +296,63 @@ public class HTTPCaller {
             if (Objects.isNull(rspBody)) {
                 return null;
             }
-            String rspEncoding = response.header("Content-Encoding");
-            if (Objects.isNull(rspEncoding) || !rspEncoding.contains("gzip")) {
-                return rspBody.bytes();
-            }
-            log.debug("[ByteplusSDK][HTTPCaller] sent:{}, received:{}, cost:{}, start:{}, end:{}, start->sent: {}, connection count:{}, header:{}",
+            long cost = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
+            String[] metricsTags = new String[]{
+                    "url:" + Utils.escapeMetricsTagValue(url),
+                    "project_id:" + getProjectID()
+            };
+            Metrics.timer(Constant.METRICS_KEY_REQUEST_COST, cost, metricsTags);
+            String metricsLogFormat = "[ByteplusSDK][HTTPCaller] project_id:%s, sent:%d, received:%d, cost:%d, start:%d, end:%d," +
+                    " start->sent: %d, connection count:%d, header:%s";
+            MetricsLog.info(getReqID(), metricsLogFormat,
+                    getProjectID(),
                     response.sentRequestAtMillis(), response.receivedResponseAtMillis(),
                     response.receivedResponseAtMillis() - response.sentRequestAtMillis(),
                     start,
                     System.currentTimeMillis(),
                     response.sentRequestAtMillis() - start,
                     selectHTTPClient(timeout).connectionPool().connectionCount(),
-                    response.headers());
+                    response.headers()
+            );
+            String rspEncoding = response.header("Content-Encoding");
+            if (Objects.isNull(rspEncoding) || !rspEncoding.contains("gzip")) {
+                return rspBody.bytes();
+            }
             return gzipDecompress(rspBody.bytes(), url);
         } catch (IOException e) {
             if (e.getMessage().toLowerCase().contains("timeout")) {
-                log.error("[ByteplusSDK] do http request timeout, cost:{}ms msg:{} url:{}",
-                        Duration.between(startTime, LocalDateTime.now()).toMillis(), e.getMessage(), url);
+                long cost = Duration.between(startTime, LocalDateTime.now()).toMillis();
+                String[] metricsTags = new String[]{
+                        "type:request_timeout",
+                        "url:" + Utils.escapeMetricsTagValue(url),
+                        "project_id:" + getProjectID()
+                };
+                Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+                String metricsLogFormat = "[ByteplusSDK] do http request timeout, project_id:%s, cost:%dms, msg:%s, url:%s";
+                MetricsLog.error(getReqID(), metricsLogFormat, getProjectID(), cost, e.getMessage(), url);
+                log.error("[ByteplusSDK] do http request timeout, cost:{}ms msg:{} url:{}", cost, e.getMessage(), url);
                 throw new NetException(e.toString());
             }
+            String[] metricsTags = new String[]{
+                    "type:request_occur_exception",
+                    "url:" + Utils.escapeMetricsTagValue(url),
+                    "project_id:" + getProjectID()
+            };
+            Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+            String metricsLogFormat = "[ByteplusSDK] do http request occur exception, project_id:%s, msg:%s, url:%s";
+            MetricsLog.error(getReqID(), metricsLogFormat, getProjectID(), e.getMessage(), url);
             log.error("[ByteplusSDK] do http request occur exception, msg:{} url:{}", e.getMessage(), url);
             throw new BizException(e.toString());
         } finally {
-            log.debug("[ByteplusSDK] http url:{}, cost:{}ms",
-                    url, Duration.between(startTime, LocalDateTime.now()).toMillis());
+            String[] metricsTags = new String[]{
+                    "project_id:" + getProjectID(),
+                    "url:" + Utils.escapeMetricsTagValue(url)
+            };
+            long cost = Duration.between(startTime, LocalDateTime.now()).toMillis();
+            Metrics.timer(Constant.METRICS_KEY_REQUEST_TOTAL_COST, cost, metricsTags);
+            MetricsLog.info(getReqID(), "[ByteplusSDK] project_id:%s, http url:%s, cost:%dms",
+                    getProjectID(), url, cost);
+            log.debug("[ByteplusSDK] http url:{}, cost:{}ms", url, cost);
         }
     }
 
@@ -329,11 +401,7 @@ public class HTTPCaller {
             if (Objects.nonNull(httpClient)) {
                 return httpClient;
             }
-            if (Objects.nonNull(customCallerClient)) {
-                httpClient = Utils.buildOkHTTPClient(customCallerClient, timeout);
-            } else {
-                httpClient = Utils.buildOkHTTPClient(timeout);
-            }
+            httpClient = Utils.buildOkHTTPClient(timeout, config.maxIdleConnections, config.keepAliveDuration);
             Map<Duration, OkHttpClient> timeoutHTTPCliMapTemp = new HashMap<>(timeoutHTTPCliMap.size());
             timeoutHTTPCliMapTemp.putAll(timeoutHTTPCliMap);
             timeoutHTTPCliMapTemp.put(timeout, httpClient);
@@ -386,5 +454,24 @@ public class HTTPCaller {
             return;
         }
         heartbeatExecutor.shutdown();
+    }
+
+    @Getter
+    @Builder(toBuilder = true)
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Config {
+        // for OkHTTP
+        private int maxIdleConnections;
+
+        private Duration keepAliveDuration;
+
+        // for httpCaller.
+        private Duration keepAlivePingInterval;
+    }
+
+    protected static Config getDefaultConfig() {
+        return new Config(Constant.DEFAULT_MAX_IDLE_CONNECTIONS,
+                Constant.DEFAULT_KEEPALIVE_DURATION, Constant.DEFAULT_KEEPALIVE_PING_INTERVAL);
     }
 }

@@ -1,5 +1,8 @@
 package com.byteplus.rec.core;
 
+import com.byteplus.rec.core.metrics.Metrics;
+import com.byteplus.rec.core.metrics.MetricsCollector;
+import com.byteplus.rec.core.metrics.MetricsLog;
 import com.google.protobuf.Message;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -64,6 +67,19 @@ public class Utils {
         return String.format("%s://%s/%s", schema, host, path);
     }
 
+    public static OkHttpClient buildOkHTTPClient(Duration timeout, int maxIdleConnections,
+                                                 Duration keepAliveDuration) {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectionPool(new ConnectionPool(
+                        maxIdleConnections,
+                        keepAliveDuration.toMillis(),
+                        TimeUnit.MILLISECONDS)
+                )
+                .pingInterval(Constant.DEFAULT_KEEPALIVE_PING_INTERVAL)
+                .build();
+        return buildOkHTTPClient(client, timeout);
+    }
+
     public static OkHttpClient buildOkHTTPClient(Duration timeout) {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(
@@ -71,6 +87,7 @@ public class Utils {
                         Constant.DEFAULT_KEEPALIVE_DURATION.toMillis(),
                         TimeUnit.MILLISECONDS)
                 )
+                .pingInterval(Constant.DEFAULT_KEEPALIVE_PING_INTERVAL)
                 .build();
         return buildOkHTTPClient(client, timeout);
     }
@@ -85,16 +102,19 @@ public class Utils {
                 .writeTimeout(timeout)
                 .readTimeout(timeout)
                 .callTimeout(timeout);
-        if (log.isDebugEnabled()) {
+        if (MetricsCollector.isEnableMetricsLog() || MetricsCollector.isEnableMetrics()) {
             okHTTPBuilder.eventListenerFactory(NetworkListener.get());
         }
         return okHTTPBuilder.build();
     }
 
-    public static boolean ping(OkHttpClient httpCli, String pingURLFormat, String host) {
-        String url = String.format(pingURLFormat, host);
+    public static boolean ping(String projectID, OkHttpClient httpCli, String pingURLFormat,
+                               String schema, String host) {
+        String url = String.format(pingURLFormat, schema, host);
         Headers.Builder builder = new Headers.Builder();
-        builder.set("Request-Id", "ping_" + UUID.randomUUID().toString());
+        String reqID = "ping_" + UUID.randomUUID().toString();
+        builder.set("Request-Id", reqID);
+        builder.set("Project-Id", projectID);
         Headers headers = builder.build();
         Request httpReq = new Request.Builder()
                 .url(url)
@@ -105,18 +125,27 @@ public class Utils {
         long start = clock.millis();
         try (Response httpRsp = httpCall.execute()) {
             long cost = clock.millis() - start;
+            MetricsLog.info(reqID, "[ByteplusSDK][ping] project_id:%s, sent: %d, received: %d, cost:%d, connection count:%d",
+                    projectID, httpRsp.sentRequestAtMillis(), httpRsp.receivedResponseAtMillis(),
+                    cost, httpCli.connectionPool().connectionCount());
             log.debug("[ByteplusSDK][ping] sent: {}, received: {}, cost:{}, connection count:{}",
                     httpRsp.sentRequestAtMillis(), httpRsp.receivedResponseAtMillis(),
                     cost, httpCli.connectionPool().connectionCount());
             if (isPingSuccess(httpRsp)) {
+                MetricsLog.info(reqID, "[ByteplusSDK] ping success, project_id:%s, host:%s, cost:%dms",
+                        projectID, Utils.escapeMetricsTagValue(host), cost);
                 log.debug("[ByteplusSDK] ping success, host:{} cost:{}ms", host, cost);
                 return true;
             }
+            MetricsLog.warn(reqID, "[ByteplusSDK] ping fail, project_id:%s, host:%s, cost:%dms, status:%d",
+                    projectID, Utils.escapeMetricsTagValue(host), cost, httpRsp.code());
             log.warn("[ByteplusSDK] ping fail, host:{} cost:{}ms status:{}", host, cost, httpRsp.code());
             return false;
         } catch (Throwable e) {
             long cost = clock.millis() - start;
-            log.warn("[ByteplusSDK] ping find err, host:'{}' cost:{}ms err:'{}'", host, cost, e.toString());
+            MetricsLog.warn(reqID, "[ByteplusSDK] ping find err, project_id:%s, host:%s, cost:%dms, err:%s",
+                    projectID, Utils.escapeMetricsTagValue(host), cost, e.getMessage());
+            log.warn("[ByteplusSDK] ping find err, host:'{}' cost:{}ms err:'{}'", host, cost, e.getMessage());
             return false;
         }
     }
@@ -131,6 +160,16 @@ public class Utils {
         }
         String rspStr = new String(rspBody.bytes(), StandardCharsets.UTF_8);
         return rspStr.length() < 20 && rspStr.contains("pong");
+    }
+
+    // The recommended platform only supports the following strings.
+    // ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-_/:
+    // If there are ?, & and = in the query, replace them all
+    public static String escapeMetricsTagValue(String value) {
+        value = value.replace("?", "-qu-");
+        value = value.replace("&", "-and-");
+        value = value.replace("=", "-eq-");
+        return value;
     }
 
     public static boolean noneEmptyString(String... str) {

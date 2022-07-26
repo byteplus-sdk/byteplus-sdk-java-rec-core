@@ -47,7 +47,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private final Clock clock = Clock.systemDefaultZone();
 
-    private String projectID;
+    protected String projectID;
 
     private List<String> defaultHosts;
 

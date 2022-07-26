@@ -5,16 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.Call;
-import okhttp3.Headers;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,11 +19,11 @@ import java.util.stream.Collectors;
 public class PingHostAvailabler extends AbstractHostAvailabler {
     private static final int DEFAULT_WINDOW_SIZE = 60;
 
-    private static final String DEFAULT_PING_URL_FORMAT = "http://%s/predict/api/ping";
+    private static final String DEFAULT_PING_SCHEMA = "http";
+
+    private static final String DEFAULT_PING_URL_FORMAT = "%s://%s/predict/api/ping";
 
     private static final Duration DEFAULT_PING_TIMEOUT = Duration.ofMillis(300);
-
-    private final Clock clock = Clock.systemDefaultZone();
 
     private final Config config;
 
@@ -88,7 +79,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
                 window = new Window(config.windowSize);
                 hostWindowMap.put(host, window);
             }
-            window.put(Utils.ping(httpCli, config.getPingURLFormat(), host));
+            window.put(Utils.ping(projectID, httpCli, config.getPingURLFormat(), DEFAULT_PING_SCHEMA, host));
         }
         return hosts.stream()
                 .map(host -> {
