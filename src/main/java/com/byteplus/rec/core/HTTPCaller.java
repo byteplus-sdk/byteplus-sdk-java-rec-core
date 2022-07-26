@@ -134,7 +134,7 @@ public class HTTPCaller {
                         "timeout:" + timeoutMs,
                         "host:" + Utils.escapeMetricsTagValue(host)
                 };
-                Metrics.counter(Constant.METRICS_KEY_HEART_BIT_COUNT, 1, metricsTags);
+                Metrics.counter(Constant.METRICS_KEY_HEARTBEAT_COUNT, 1, metricsTags);
                 Utils.ping(getProjectID(), client, DEFAULT_PING_URL_FORMAT, schema, host);
             }
         }

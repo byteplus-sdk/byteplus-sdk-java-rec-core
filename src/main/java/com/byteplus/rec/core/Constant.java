@@ -41,5 +41,7 @@ public final class Constant {
     public final static String METRICS_KEY_NETWORK_DNS_START = "network.dns.start";
     public final static String METRICS_KEY_NETWORK_CONNECT_START = "network.connect.start";
     public final static String METRICS_KEY_NETWORK_SECURE_CONNECT_START = "network.secure.connect.start";
-    public final static String METRICS_KEY_HEART_BIT_COUNT = "heartbeat.count";
+    public final static String METRICS_KEY_NETWORK_CONNECT_FAIL = "network.connect.fail";
+    public final static String METRICS_KEY_NETWORK_CALL_FAIL = "network.call.fail";
+    public final static String METRICS_KEY_HEARTBEAT_COUNT = "heartbeat.count";
 }

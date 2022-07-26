@@ -191,7 +191,6 @@ public class MetricsCollector {
             }
             metrics.add(metric);
         }
-        System.out.println(Arrays.toString(metrics.toArray()));
         cleaningMetricsCollector = false;
         doReportMetrics(metrics);
     }
@@ -245,7 +244,6 @@ public class MetricsCollector {
         try {
             metricsReporter.report(metricLogMessage, url);
         } catch (BizException e) {
-            System.out.println(e.getMessage());
             log.error("[BytePlusSDK][Metrics] report metrics log exception, msg:{}, url:{}", e.getMessage(), url);
         }
     }
@@ -255,12 +253,19 @@ public class MetricsCollector {
     @Builder(toBuilder = true)
     @AllArgsConstructor
     public static class MetricsCfg {
+        // When metrics are enabled, monitoring metrics will be reported to the byteplus server during use.
         private boolean enableMetrics;
+        // When metrics log is enabled, the log will be reported to the byteplus server during use.
         private boolean enableMetricsLog;
+        // The address of the byteplus metrics service, will be consistent with the host maintained by hostAvailabler.
         private String domain;
+        // The prefix of the Metrics indicator, the default is byteplus.rec.sdk, do not modify.
         private String prefix;
+        // Use this httpSchema to report metrics to byteplus server, default is https.
         private String httpSchema;
+        // The reporting interval, the default is 15s, if the QPS is high, the reporting interval can be reduced to prevent data loss.
         private Duration reportInterval;
+        // Timeout for request reporting.
         private Duration httpTimeout;
 
         // build default metricsCfg

@@ -112,6 +112,11 @@ public class NetworkListener extends EventListener {
 
     @Override
     public void connectFailed(@NotNull Call call, @NotNull InetSocketAddress inetSocketAddress, @NotNull Proxy proxy, @Nullable Protocol protocol, @NotNull IOException ioe) {
+        String[] metricsTags = new String[]{
+                "url:" + Utils.escapeMetricsTagValue(call.request().url().toString()),
+                "project_id:" + getProjectID(call)
+        };
+        Metrics.counter(Constant.METRICS_KEY_NETWORK_CONNECT_FAIL, 1, metricsTags);
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, connectFailed=%d",
                 getProjectID(call), addr, currentTimestamp);
@@ -182,6 +187,11 @@ public class NetworkListener extends EventListener {
 
     @Override
     public void callFailed(@NotNull Call call, @NotNull IOException ioe) {
+        String[] metricsTags = new String[]{
+                "url:" + Utils.escapeMetricsTagValue(call.request().url().toString()),
+                "project_id:" + getProjectID(call)
+        };
+        Metrics.counter(Constant.METRICS_KEY_NETWORK_CALL_FAIL, 1, metricsTags);
         long currentTimestamp = System.currentTimeMillis();
         MetricsLog.info(getReqID(call), "[ByteplusSDK][NetworkListener] project_id=%s, host=%s, callFailed=%d, err=%s",
                 getProjectID(call), addr, currentTimestamp, ioe.getMessage());
