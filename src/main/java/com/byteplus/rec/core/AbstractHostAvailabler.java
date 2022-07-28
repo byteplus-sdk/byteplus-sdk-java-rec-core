@@ -45,6 +45,10 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         }
     }
 
+    private static final Duration DEFAULT_FETCH_HOST_INTERVAL = Duration.ofSeconds(10);
+
+    private static final Duration DEFAULT_SCORE_HOST_INTERVAL = Duration.ofSeconds(1);
+
     private final Clock clock = Clock.systemDefaultZone();
 
     protected String projectID;
@@ -65,7 +69,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         }
         this.defaultHosts = defaultHosts;
         if (initImmediately) {
-            init();
+            init(DEFAULT_FETCH_HOST_INTERVAL, DEFAULT_SCORE_HOST_INTERVAL);
         }
     }
 
@@ -81,20 +85,22 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         this.projectID = projectID;
         this.defaultHosts = defaultHosts;
         if (initImmediately) {
-            init();
+            init(DEFAULT_FETCH_HOST_INTERVAL, DEFAULT_SCORE_HOST_INTERVAL);
         }
     }
 
-    protected void init() throws BizException {
+    protected void init(Duration fetchHostInterval, Duration scoreHostInterval) throws BizException {
         this.setHosts(defaultHosts);
         executor = Executors.newSingleThreadScheduledExecutor();
         if (Objects.nonNull(this.projectID)) {
             fetchHostsHTTPClient = Utils.buildOkHTTPClient(Duration.ofSeconds(5));
             fetchHostsFromServer();
             fetchHostsFromServerFuture = executor.
-                    scheduleAtFixedRate(this::fetchHostsFromServer, 10, 10, TimeUnit.SECONDS);
+                    scheduleAtFixedRate(this::fetchHostsFromServer,
+                            fetchHostInterval.toMillis(), fetchHostInterval.toMillis(), TimeUnit.MILLISECONDS);
         }
-        executor.scheduleAtFixedRate(this::scoreAndUpdateHosts, 1, 1, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(this::scoreAndUpdateHosts,
+                scoreHostInterval.toMillis(), scoreHostInterval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     // clear origin host config, and use hosts as default config
