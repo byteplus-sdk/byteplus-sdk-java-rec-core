@@ -25,6 +25,10 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
 
     private static final Duration DEFAULT_PING_TIMEOUT = Duration.ofMillis(300);
 
+    private static final Duration DEFAULT_PING_INTERVAL = Duration.ofSeconds(1);
+
+    private static final Duration DEFAULT_FETCH_HOST_INTERVAL = Duration.ofSeconds(10);
+
     private final Config config;
 
     private final Map<String, Window> hostWindowMap = new HashMap<>();
@@ -39,7 +43,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         super(hosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
-        init();
+        init(config.fetchHostInterval, config.pingInterval);
     }
 
     public PingHostAvailabler(String projectID, List<String> hosts) throws BizException {
@@ -50,7 +54,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         super(projectID, hosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
-        init();
+        init(config.fetchHostInterval, config.pingInterval);
     }
 
     private Config fillDefaultConfig(Config config) {
@@ -58,11 +62,17 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         if (Objects.isNull(config.pingURLFormat)) {
             config.pingURLFormat = DEFAULT_PING_URL_FORMAT;
         }
-        if (Objects.isNull(config.pingTimeout)) {
+        if (Objects.isNull(config.pingTimeout) || config.pingTimeout.isZero()) {
             config.pingTimeout = DEFAULT_PING_TIMEOUT;
         }
         if (config.windowSize <= 0) {
             config.windowSize = DEFAULT_WINDOW_SIZE;
+        }
+        if (Objects.isNull(config.pingInterval) || config.pingInterval.isZero()) {
+            config.pingInterval = DEFAULT_PING_INTERVAL;
+        }
+        if (Objects.isNull(config.fetchHostInterval) || config.fetchHostInterval.isZero()) {
+            config.fetchHostInterval = DEFAULT_FETCH_HOST_INTERVAL;
         }
         return config;
     }
@@ -97,6 +107,10 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         private String pingURLFormat;
 
         private Duration pingTimeout;
+
+        private Duration pingInterval;
+
+        private Duration fetchHostInterval;
 
         private int windowSize;
     }
