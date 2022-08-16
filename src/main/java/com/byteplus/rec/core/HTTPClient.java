@@ -91,8 +91,7 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
-            MetricsCollector.setHostAvailabler(hostAvailabler);
-            MetricsCollector.Init(metricsCfg);
+            MetricsCollector.Init(metricsCfg, hostAvailabler);
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 

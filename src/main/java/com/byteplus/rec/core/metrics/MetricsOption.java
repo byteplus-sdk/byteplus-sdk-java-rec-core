@@ -1,11 +1,7 @@
 package com.byteplus.rec.core.metrics;
 
-import com.byteplus.rec.core.IRegion;
-
 import java.time.Duration;
 import java.util.Objects;
-
-import static com.byteplus.rec.core.metrics.Constant.DEFAULT_HTTP_TIMEOUT;
 
 public interface MetricsOption {
     void fill(MetricsCollector.MetricsCfg options);
@@ -32,7 +28,7 @@ public interface MetricsOption {
         };
     }
 
-    //if not set, will report metrics.
+    //if not set, will not report metrics.
     static MetricsOption enableMetrics() {
         return options -> {
             options.setEnableMetrics(true);
@@ -60,11 +56,4 @@ public interface MetricsOption {
             options.setHttpTimeout(timeout);
         };
     }
-
-    static MetricsOption withMetricsRegion(IRegion region) {
-        return options -> {
-            options.setDomain(region.getHosts().get(0));
-        };
-    }
-
 }

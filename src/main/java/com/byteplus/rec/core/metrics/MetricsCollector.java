@@ -16,6 +16,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import static com.byteplus.rec.core.metrics.Constant.*;
 
 
@@ -32,49 +35,48 @@ public class MetricsCollector {
     private static ScheduledExecutorService reportExecutor;
     private static volatile HostAvailabler hostAvailabler;
 
-    public static void setHostAvailabler(HostAvailabler hostAvailabler) {
-        MetricsCollector.hostAvailabler = hostAvailabler;
-    }
-
-    public static void Init(MetricsCfg metricsConfig) {
+    public static void Init(MetricsCfg metricsConfig, HostAvailabler hostAvailabler) {
         if (initialed.get()) {
             return;
         }
-        metricsCfg = metricsConfig;
         if (Objects.isNull(metricsConfig)) {
-            metricsCfg = new MetricsCfg();
+            metricsConfig = new MetricsCfg();
         }
-        doInit();
+        doInit(metricsConfig, hostAvailabler);
     }
 
     public static void Init(MetricsOption... opts) {
         if (initialed.get()) {
             return;
         }
-        metricsCfg = new MetricsCfg();
+        MetricsCfg metricsConfig = new MetricsCfg();
         // apply options
         for (MetricsOption opt : opts) {
-            opt.fill((metricsCfg));
+            opt.fill((metricsConfig));
         }
-        doInit();
+        doInit(metricsConfig, null);
     }
 
-    private static void doInit() {
+    private static synchronized void doInit(MetricsCfg metricsConfig, HostAvailabler hostAvailabler) {
+        if (initialed.get()) {
+            return;
+        }
+        metricsCfg = metricsConfig;
+        MetricsCollector.hostAvailabler = hostAvailabler;
         // initialize metrics reporter
         metricsReporter = new MetricsReporter(metricsCfg);
         // initialize metrics collector
         metricsCollector = new ConcurrentLinkedQueue<>();
         metricsLogCollector = new ConcurrentLinkedQueue<>();
 
-        if (!initialed.get()) {
+        if (!isEnableMetrics() && !isEnableMetricsLog()) {
             initialed.set(true);
-            if (!isEnableMetrics() && !isEnableMetricsLog()) {
-                return;
-            }
-            reportExecutor = Executors.newSingleThreadScheduledExecutor();
-            reportExecutor.scheduleAtFixedRate(MetricsCollector::report, metricsCfg.reportInterval.toMillis(),
-                    metricsCfg.reportInterval.toMillis(), TimeUnit.MILLISECONDS);
+            return;
         }
+        reportExecutor = Executors.newSingleThreadScheduledExecutor();
+        reportExecutor.scheduleAtFixedRate(MetricsCollector::report, metricsCfg.reportInterval.toMillis(),
+                metricsCfg.reportInterval.toMillis(), TimeUnit.MILLISECONDS);
+        initialed.set(true);
     }
 
     public static boolean isEnableMetrics() {
