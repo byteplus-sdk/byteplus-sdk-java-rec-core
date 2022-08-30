@@ -58,6 +58,9 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
     }
 
     private Config fillDefaultConfig(Config config) {
+        if (Objects.isNull(config)) {
+            config = new Config();
+        }
         config = config.toBuilder().build();
         if (Objects.isNull(config.pingURLFormat)) {
             config.pingURLFormat = DEFAULT_PING_URL_FORMAT;
