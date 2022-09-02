@@ -35,9 +35,12 @@ public final class Constant {
     public final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
 
     // Metrics Key
+    public final static String METRICS_KEY_COMMON_INFO = "common.info";
+    public final static String METRICS_KEY_COMMON_WARN = "common.warn";
     public final static String METRICS_KEY_COMMON_ERROR = "common.err";
     public final static String METRICS_KEY_REQUEST_TOTAL_COST = "request.total.cost";
     public final static String METRICS_KEY_REQUEST_COST = "request.cost";
+    public final static String METRICS_KEY_REQUEST_COUNT = "request.count";
     public final static String METRICS_KEY_NETWORK_DNS_START = "network.dns.start";
     public final static String METRICS_KEY_NETWORK_CONNECT_START = "network.connect.start";
     public final static String METRICS_KEY_NETWORK_SECURE_CONNECT_START = "network.secure.connect.start";

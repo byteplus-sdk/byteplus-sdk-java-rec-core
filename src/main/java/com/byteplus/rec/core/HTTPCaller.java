@@ -350,6 +350,7 @@ public class HTTPCaller {
             };
             long cost = Duration.between(startTime, LocalDateTime.now()).toMillis();
             Metrics.timer(Constant.METRICS_KEY_REQUEST_TOTAL_COST, cost, metricsTags);
+            Metrics.counter(Constant.METRICS_KEY_REQUEST_COUNT, 1, metricsTags);
             MetricsLog.info(getReqID(), "[ByteplusSDK] http request, project_id:%s, http url:%s, cost:%dms",
                     getProjectID(), url, cost);
             log.debug("[ByteplusSDK] http url:{}, cost:{}ms", url, cost);
