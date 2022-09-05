@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Objects;
 
 
 @Slf4j
@@ -38,10 +39,18 @@ public class NetworkListener extends EventListener {
     }
 
     public String getReqID(@NotNull Call call) {
-        return call.request().headers("Request-Id").get(0);
+        List<String> values = call.request().headers("Request-Id");
+        if (Objects.isNull(values) || values.isEmpty()) {
+            return "non-reqId";
+        }
+        return values.get(0);
     }
 
     public String getProjectID(@NotNull Call call) {
+        List<String> values = call.request().headers("Project-Id");
+        if (Objects.isNull(values) || values.isEmpty()) {
+            return "non-projectId";
+        }
         return call.request().headers("Project-Id").get(0);
     }
 

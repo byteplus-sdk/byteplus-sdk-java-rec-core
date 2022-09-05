@@ -165,6 +165,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         long start = clock.millis();
         Headers headers = new Headers.Builder()
                 .set("Request-Id", reqID)
+                .set("Project-Id", projectID)
                 .build();
         Request httpRequest = new Request.Builder()
                 .url(url)
@@ -283,7 +284,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
                     "project_id:" + projectID
             };
             Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
-            MetricsLog.error(logID, "[ByteplusSDK][Score] scoring hosts return an empty list");
+            MetricsLog.error(logID, "[ByteplusSDK][Score] scoring hosts return an empty list, project_id:%s", projectID);
             log.error("[ByteplusSDK] scoring hosts return an empty list");
             return;
         }
