@@ -43,7 +43,7 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         super(hosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
-        init(config.fetchHostInterval, config.pingInterval);
+        init(this.config.fetchHostInterval, this.config.pingInterval);
     }
 
     public PingHostAvailabler(String projectID, List<String> hosts) throws BizException {
@@ -54,10 +54,13 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
         super(projectID, hosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
-        init(config.fetchHostInterval, config.pingInterval);
+        init(this.config.fetchHostInterval, this.config.pingInterval);
     }
 
     private Config fillDefaultConfig(Config config) {
+        if (Objects.isNull(config)) {
+            config = new Config();
+        }
         config = config.toBuilder().build();
         if (Objects.isNull(config.pingURLFormat)) {
             config.pingURLFormat = DEFAULT_PING_URL_FORMAT;

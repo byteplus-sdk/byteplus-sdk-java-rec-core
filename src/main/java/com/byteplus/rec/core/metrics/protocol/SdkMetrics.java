@@ -3763,9 +3763,10 @@ public final class SdkMetrics {
       "etricLog\022\n\n\002id\030\001 \001(\t\022\r\n\005level\030\002 \001(\t\022\021\n\tt" +
       "imestamp\030\003 \001(\003\022\017\n\007message\030\004 \001(\t\":\n\020Metri" +
       "cLogMessage\022&\n\013metric_logs\030\001 \003(\0132\021.metri" +
-      "c.MetricLogBX\n&com.byteplus.rec.core.met" +
-      "rics.protocolZ.code.byted.org/3rd_rec/ai" +
-      "r_api_protocol/metricb\006proto3"
+      "c.MetricLogBk\n&com.byteplus.rec.core.met" +
+      "rics.protocolZAgithub.com/byteplus-sdk/b" +
+      "yteplus-sdk-go-rec-core/metrics/protocol" +
+      "b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,

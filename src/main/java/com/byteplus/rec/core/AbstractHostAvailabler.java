@@ -2,26 +2,17 @@ package com.byteplus.rec.core;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.byteplus.rec.core.metrics.Metrics;
+import com.byteplus.rec.core.metrics.MetricsLog;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import okhttp3.*;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -129,44 +120,98 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private void fetchHostsFromServer() {
         String url = String.format("http://%s/data/api/sdk/host?project_id=%s", defaultHosts.get(0), projectID);
+        String reqID = "fetch_" + UUID.randomUUID().toString();
         for (int i = 0; i < 3; i++) {
-            Map<String, List<String>> rspHostConfig = doFetchHostsFromServer(url);
+            Map<String, List<String>> rspHostConfig = doFetchHostsFromServer(reqID, url);
             if (Objects.isNull(rspHostConfig)) {
                 continue;
             }
             if (isServerHostsNotUpdated(rspHostConfig)) {
+                String metricsLogFormat = "[ByteplusSDK][Fetch] hosts from server are not changed," +
+                        " project_id:%s, config:%s";
+                MetricsLog.info(reqID, metricsLogFormat, projectID, rspHostConfig);
                 log.debug("[ByteplusSDK] hosts from server are not changed, config: {}", rspHostConfig);
                 return;
             }
             if (!rspHostConfig.containsKey("*") || rspHostConfig.get("*").isEmpty()) {
+                String[] metricsTags = new String[]{
+                        "type:no_default_hosts",
+                        "url:" + Utils.escapeMetricsTagValue(url),
+                        "project_id:" + projectID
+                };
+                Metrics.counter(Constant.METRICS_KEY_COMMON_WARN, 1, metricsTags);
+                String metricsLogFormat = "[ByteplusSDK][Fetch] no default value in hosts from server," +
+                        " project_id:%s, config:%s";
+                MetricsLog.warn(reqID, metricsLogFormat, projectID, rspHostConfig);
                 log.warn("[ByteplusSDK] no default value in hosts from server, config: {}", rspHostConfig);
                 return;
             }
             doScoreAndUpdateHosts(rspHostConfig);
             return;
         }
+        String[] metricsTags = new String[]{
+                "type:fetch_host_fail_although_retried",
+                "url:" + Utils.escapeMetricsTagValue(url),
+                "project_id:" + projectID
+        };
+        Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+        String metricsLogFormat = "[ByteplusSDK][Fetch] fetch host from server fail although retried," +
+                " project_id:%s url:%s";
+        MetricsLog.warn(reqID, metricsLogFormat, projectID, url);
         log.warn("[ByteplusSDK] fetch host from server fail although retried, url: {}", url);
     }
 
-    private Map<String, List<String>> doFetchHostsFromServer(String url) {
+    private Map<String, List<String>> doFetchHostsFromServer(String reqID,String url) {
         long start = clock.millis();
+        Headers headers = new Headers.Builder()
+                .set("Request-Id", reqID)
+                .set("Project-Id", projectID)
+                .build();
         Request httpRequest = new Request.Builder()
                 .url(url)
+                .headers(headers)
                 .get()
                 .build();
         Call httpCall = fetchHostsHTTPClient.newCall(httpRequest);
         try (Response httpRsp = httpCall.execute()) {
             long cost = clock.millis() - start;
             if (httpRsp.code() == Constant.HTTP_STATUS_NOT_FOUND) {
+                String[] metricsTags = new String[]{
+                        "type:fetch_host_status_400",
+                        "url:" + Utils.escapeMetricsTagValue(url),
+                        "project_id:" + projectID
+                };
+                Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+                String metricsLogFormat = "[ByteplusSDK][Fetch] fetch host from server return not found status," +
+                        " project_id:%s cost:%dms";
+                MetricsLog.warn(reqID, metricsLogFormat, projectID, cost);
                 log.warn("[ByteplusSDK] fetch host from server return not found status, cost:{}ms", cost);
                 return Collections.emptyMap();
             }
             if (httpRsp.code() != Constant.HTTP_STATUS_OK) {
+                String[] metricsTags = new String[]{
+                        "type:fetch_host_not_ok",
+                        "url:" + Utils.escapeMetricsTagValue(url),
+                        "project_id:" + projectID
+                };
+                Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+                String metricsLogFormat = "[ByteplusSDK][Fetch] fetch host from server return not ok status," +
+                        " project_id:%s, status:%d, cost:%dms";
+                MetricsLog.warn(reqID, metricsLogFormat, projectID, httpRsp.code(), cost);
                 log.warn("[ByteplusSDK] fetch host from server return not ok status:{} cost:{}ms", httpRsp.code(), cost);
                 return null;
             }
             ResponseBody rspBody = httpRsp.body();
             String rspBodyStr = Objects.isNull(rspBody) ? null : new String(rspBody.bytes(), StandardCharsets.UTF_8);
+            String[] metricsTags = new String[]{
+                    "url:" + Utils.escapeMetricsTagValue(url),
+                    "project_id:" + projectID
+            };
+            Metrics.counter(Constant.METRICS_KEY_REQUEST_COUNT, 1, metricsTags);
+            Metrics.timer(Constant.METRICS_KEY_REQUEST_TOTAL_COST, cost, metricsTags);
+            String metricsLogFormat = "[ByteplusSDK][Fetch] fetch host from server," +
+                    " project_id:%s, url:%s, cost:%dms, rsp: %s";
+            MetricsLog.info(reqID, metricsLogFormat, projectID, url, cost, rspBodyStr);
             log.debug("[ByteplusSDK] fetch host from server, cost:{}ms rsp:{}", cost, rspBodyStr);
             if (Objects.nonNull(rspBodyStr) && rspBodyStr.length() > 0) {
                 return JSON.parseObject(rspBodyStr, new TypeReference<Map<String, List<String>>>() {
@@ -176,6 +221,15 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
             return Collections.emptyMap();
         } catch (Throwable e) {
             long cost = clock.millis() - start;
+            String[] metricsTags = new String[]{
+                    "type:fetch_host_fail",
+                    "url:" + Utils.escapeMetricsTagValue(url),
+                    "project_id:" + projectID
+            };
+            Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+            String metricsLogFormat = "[ByteplusSDK][Fetch] fetch host from server fail," +
+                    " project_id:%s, url:%s, cost:%dms, err: %s";
+            MetricsLog.warn(reqID, metricsLogFormat, projectID, url, cost, e.toString());
             log.warn("[ByteplusSDK] fetch host from server fail, url:{} cost:{}ms err:{}", url, cost, e.toString());
             return null;
         }
@@ -218,18 +272,36 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     //   "*": ["bytedance.com", "byteplus.com"]
     // }
     private void doScoreAndUpdateHosts(Map<String, List<String>> hostConfig) {
+        String logID = "score_" + UUID.randomUUID().toString();
         List<String> hosts = distinctHosts(hostConfig);
         List<HostAvailabilityScore> newHostScores = doScoreHosts(hosts);
+        MetricsLog.info(logID, "[ByteplusSDK][Score] score hosts, project_id:%s, result:%s",
+                projectID, newHostScores);
         log.debug("[ByteplusSDK] score hosts result: {}", newHostScores);
         if (Objects.isNull(newHostScores) || newHostScores.isEmpty()) {
+            String[] metricsTags = new String[]{
+                    "type:scoring_hosts_return_empty_list",
+                    "project_id:" + projectID
+            };
+            Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
+            MetricsLog.error(logID, "[ByteplusSDK][Score] scoring hosts return an empty list, project_id:%s", projectID);
             log.error("[ByteplusSDK] scoring hosts return an empty list");
             return;
         }
         Map<String, List<String>> newHostConfig = copyAndSortHost(hostConfig, newHostScores);
         if (isHostConfigNotUpdated(this.hostConfig, newHostConfig)) {
+            MetricsLog.info(logID, "[ByteplusSDK][Score] host order is not changed, project_id:%s, hosts:%s",
+                    projectID, newHostScores);
             log.debug("[ByteplusSDK] host order is not changed, {}", newHostConfig);
             return;
         }
+        String[] metricsTags = new String[]{
+                "type:set_new_host_config",
+                "project_id:" + projectID
+        };
+        Metrics.counter(Constant.METRICS_KEY_COMMON_INFO, 1, metricsTags);
+        MetricsLog.info(logID, "[ByteplusSDK][Score] set new host config: %s, old config: %s, project_id: %s",
+                newHostConfig, hostConfig, projectID);
         log.warn("[ByteplusSDK] set new host config: {}, old config: {}", newHostConfig, hostConfig);
         this.hostConfig = newHostConfig;
     }

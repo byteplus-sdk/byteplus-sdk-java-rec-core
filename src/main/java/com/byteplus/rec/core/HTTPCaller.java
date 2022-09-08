@@ -350,7 +350,8 @@ public class HTTPCaller {
             };
             long cost = Duration.between(startTime, LocalDateTime.now()).toMillis();
             Metrics.timer(Constant.METRICS_KEY_REQUEST_TOTAL_COST, cost, metricsTags);
-            MetricsLog.info(getReqID(), "[ByteplusSDK] project_id:%s, http url:%s, cost:%dms",
+            Metrics.counter(Constant.METRICS_KEY_REQUEST_COUNT, 1, metricsTags);
+            MetricsLog.info(getReqID(), "[ByteplusSDK] http request, project_id:%s, http url:%s, cost:%dms",
                     getProjectID(), url, cost);
             log.debug("[ByteplusSDK] http url:{}, cost:{}ms", url, cost);
         }
@@ -411,8 +412,18 @@ public class HTTPCaller {
     }
 
     private void logErrHTTPResponse(String url, Response response) throws IOException {
+        String[] metricsTags = new String[]{
+                "type:rsp_status_not_ok",
+                "url:" + Utils.escapeMetricsTagValue(url),
+                "project_id:" + getProjectID(),
+                "status:" + response.code(),
+        };
+        Metrics.counter(Constant.METRICS_KEY_COMMON_ERROR, 1, metricsTags);
         ResponseBody rspBody = response.body();
         if (Objects.isNull(rspBody)) {
+            String logFormat = "[ByteplusSDK] http status not 200, project_id:%s, url:%s, code:%d, msg:%s, headers:\\n%s";
+            MetricsLog.error(getReqID(), logFormat,
+                    getProjectID(), url, response.code(), response.message(), response.headers());
             log.error("[ByteplusSDK] http status not 200, url:{} code:{} msg:{} headers:\n{}",
                     url, response.code(), response.message(), response.headers());
             return;
@@ -424,9 +435,12 @@ public class HTTPCaller {
         } else {
             rspBodyBytes = gzipDecompress(rspBody.bytes(), url);
         }
+        String bodyStr = new String(rspBodyBytes, StandardCharsets.UTF_8);
+        String logFormat = "[ByteplusSDK] http status not 200, project_id:%s, url:%s, code:%d, msg:%s, headers:\\n%s, body:\n%s";
+        MetricsLog.error(getReqID(), logFormat,
+                getProjectID(), url, response.code(), response.message(), response.headers(), bodyStr);
         log.error("[ByteplusSDK] http status not 200, url:{} code:{} msg:{} headers:\n{} body:\n{}",
-                url, response.code(), response.message(),
-                response.headers(), new String(rspBodyBytes, StandardCharsets.UTF_8));
+                url, response.code(), response.message(), response.headers(), bodyStr);
     }
 
     private byte[] gzipDecompress(byte[] bodyBytes, String url) {

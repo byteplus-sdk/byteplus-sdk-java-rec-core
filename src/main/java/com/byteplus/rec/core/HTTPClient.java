@@ -53,6 +53,8 @@ public class HTTPClient {
     @Setter
     @Accessors(fluent = true, chain = true)
     public static class Builder {
+        private static HostAvailabler globalHostAvailabler;
+
         private String tenantID;
 
         private String projectID;
@@ -91,8 +93,8 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
-            MetricsCollector.setHostAvailabler(hostAvailabler);
-            MetricsCollector.Init(metricsCfg);
+            initGlobalHostAvailabler();
+            MetricsCollector.Init(metricsCfg, globalHostAvailabler);
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
         }
 
@@ -125,23 +127,32 @@ public class HTTPClient {
             if (Objects.isNull(schema) || schema.equals("")) {
                 schema = "https";
             }
-            // fill hostAvailabler.
+            // fill hostAvailabler Factory.
             if (Objects.isNull(hostAvailablerFactory)) {
                 hostAvailablerFactory = new HostAvailablerFactory();
             }
-            if (Utils.isNotEmptyList(hosts)) {
-                hostAvailabler = hostAvailablerFactory.newHostAvailabler(hosts);
-            } else {
-                if (Objects.nonNull(projectID) && !projectID.isEmpty()) {
-                    hostAvailabler = hostAvailablerFactory.newHostAvailabler(projectID, region.getHosts());
-                } else {
-                    hostAvailabler = hostAvailablerFactory.newHostAvailabler(region.getHosts());
-                }
-            }
+            hostAvailabler = newHostAvailabler();
             // fill default caller config.
             if (Objects.isNull(callerConfig)) {
                 callerConfig = HTTPCaller.getDefaultConfig();
             }
+        }
+
+        private synchronized void initGlobalHostAvailabler() throws BizException {
+            if (Objects.nonNull(globalHostAvailabler)) {
+                return;
+            }
+            globalHostAvailabler = newHostAvailabler();
+        }
+
+        private HostAvailabler newHostAvailabler() throws BizException {
+            if (Utils.isNotEmptyList(hosts)) {
+                return hostAvailablerFactory.newHostAvailabler(hosts);
+            }
+            if (Objects.nonNull(projectID) && !projectID.isEmpty()) {
+                return hostAvailablerFactory.newHostAvailabler(projectID, region.getHosts());
+            }
+            return hostAvailablerFactory.newHostAvailabler(region.getHosts());
         }
 
         private HTTPCaller newHTTPCaller() {
