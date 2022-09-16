@@ -100,6 +100,10 @@ public class MetricsCollector {
         initialed.set(true);
     }
 
+    public static boolean isInitialed() {
+        return initialed.get();
+    }
+
     public static boolean isEnableMetrics() {
         if (Objects.isNull(metricsCfg)) {
             return false;
