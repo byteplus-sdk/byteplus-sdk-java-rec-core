@@ -93,8 +93,11 @@ public class HTTPClient {
         public HTTPClient build() throws BizException {
             checkRequiredField();
             fillDefault();
-            if (!MetricsCollector.isInitialed() && (metricsCfg.isEnableMetrics() || metricsCfg.isEnableMetricsLog())) {
-                initGlobalHostAvailabler();
+            // init only use metrics
+            if (!MetricsCollector.isInitialed() && Objects.nonNull(metricsCfg)) {
+                if (metricsCfg.isEnableMetrics() || metricsCfg.isEnableMetricsLog()) {
+                    initGlobalHostAvailabler();
+                }
             }
             MetricsCollector.Init(metricsCfg, globalHostAvailabler);
             return new HTTPClient(newHTTPCaller(), hostAvailabler, schema);
