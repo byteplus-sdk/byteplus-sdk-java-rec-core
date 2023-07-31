@@ -112,9 +112,11 @@ public class Utils {
                                String schema, String host) {
         String url = String.format(pingURLFormat, schema, host);
         Headers.Builder builder = new Headers.Builder();
-        String reqID = "ping_" + UUID.randomUUID().toString();
+        String reqID = "ping_" + UUID.randomUUID();
         builder.set("Request-Id", reqID);
-        builder.set("Project-Id", projectID);
+        if (Objects.nonNull(projectID)) {
+            builder.set("Project-Id", projectID);
+        }
         Headers headers = builder.build();
         Request httpReq = new Request.Builder()
                 .url(url)

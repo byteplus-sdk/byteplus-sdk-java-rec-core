@@ -58,6 +58,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         if (Objects.isNull(defaultHosts) || defaultHosts.isEmpty()) {
             throw new BizException("default hosts are empty");
         }
+        this.projectID = "";
         this.defaultHosts = defaultHosts;
         if (initImmediately) {
             init(DEFAULT_FETCH_HOST_INTERVAL, DEFAULT_SCORE_HOST_INTERVAL);
@@ -83,7 +84,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
     protected void init(Duration fetchHostInterval, Duration scoreHostInterval) throws BizException {
         this.setHosts(defaultHosts);
         executor = Executors.newSingleThreadScheduledExecutor();
-        if (Objects.nonNull(this.projectID)) {
+        if (Objects.nonNull(this.projectID) && !this.projectID.isEmpty()) {
             fetchHostsHTTPClient = Utils.buildOkHTTPClient(Duration.ofSeconds(5));
             fetchHostsFromServer();
             fetchHostsFromServerFuture = executor.
