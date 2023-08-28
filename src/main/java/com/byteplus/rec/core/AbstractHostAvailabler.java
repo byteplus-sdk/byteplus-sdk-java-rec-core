@@ -348,6 +348,9 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         if (Objects.isNull(newHostConfig)) {
             return true;
         }
+        if (oldHostConfig.size() != newHostConfig.size()) {
+            return false;
+        }
         Set<String> pathSet = oldHostConfig.keySet();
         for (String path : pathSet) {
             List<String> oldHosts = oldHostConfig.get(path);
