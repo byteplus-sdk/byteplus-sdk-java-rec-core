@@ -1,8 +1,8 @@
 package com.byteplus.rec.core.metrics;
 
 import com.byteplus.rec.core.BizException;
-import com.byteplus.rec.core.metrics.protocol.SdkMetrics.MetricMessage;
-import com.byteplus.rec.core.metrics.protocol.SdkMetrics.MetricLogMessage;
+import com.byteplus.rec.core.metrics.protocol.ByteplusRecSdkMetrics.MetricMessage;
+import com.byteplus.rec.core.metrics.protocol.ByteplusRecSdkMetrics.MetricLogMessage;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
