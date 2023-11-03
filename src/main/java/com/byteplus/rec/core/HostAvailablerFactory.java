@@ -11,4 +11,8 @@ public class HostAvailablerFactory {
     public HostAvailabler newHostAvailabler(List<String> hosts) throws BizException {
         return new PingHostAvailabler(hosts, new PingHostAvailabler.Config());
     }
+
+    public HostAvailabler newHostAvailabler(String projectID, List<String> hosts, String mainHost, boolean skipFetchHosts) throws BizException {
+        return new PingHostAvailabler(projectID, hosts, new PingHostAvailabler.Config(), mainHost, skipFetchHosts);
+    }
 }

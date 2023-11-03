@@ -40,11 +40,18 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private static final Duration DEFAULT_SCORE_HOST_INTERVAL = Duration.ofSeconds(1);
 
+    private static final double MAIN_HOST_AVAILABLE_SCORE = 0.9;
+
     private final Clock clock = Clock.systemDefaultZone();
+
 
     protected String projectID;
 
     private List<String> defaultHosts;
+
+    private String mainHost;
+
+    private boolean skipFetchHosts;
 
     private ScheduledExecutorService executor;
 
@@ -81,10 +88,27 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         }
     }
 
+    public AbstractHostAvailabler(String projectID, List<String> defaultHosts, String mainHost,
+                                  boolean skipFetchHosts, boolean initImmediately) throws BizException {
+        if (Objects.isNull(projectID) || projectID.isEmpty()) {
+            throw new BizException("project is empty");
+        }
+        if (Objects.isNull(defaultHosts) || defaultHosts.isEmpty()) {
+            throw new BizException("default hosts are empty");
+        }
+        this.projectID = projectID;
+        this.defaultHosts = defaultHosts;
+        this.mainHost = mainHost;
+        this.skipFetchHosts = skipFetchHosts;
+        if (initImmediately) {
+            init(DEFAULT_FETCH_HOST_INTERVAL, DEFAULT_SCORE_HOST_INTERVAL);
+        }
+    }
+
     protected void init(Duration fetchHostInterval, Duration scoreHostInterval) throws BizException {
         this.setHosts(defaultHosts);
         executor = Executors.newSingleThreadScheduledExecutor();
-        if (Objects.nonNull(this.projectID) && !this.projectID.isEmpty()) {
+        if (!skipFetchHosts) {
             fetchHostsHTTPClient = Utils.buildOkHTTPClient(Duration.ofSeconds(5));
             fetchHostsFromServer();
             fetchHostsFromServerFuture = executor.
@@ -162,7 +186,7 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
         log.warn("[ByteplusSDK] fetch host from server fail although retried, url: {}", url);
     }
 
-    private Map<String, List<String>> doFetchHostsFromServer(String reqID,String url) {
+    private Map<String, List<String>> doFetchHostsFromServer(String reqID, String url) {
         long start = clock.millis();
         Headers headers = new Headers.Builder()
                 .set("Request-Id", reqID)
@@ -318,9 +342,12 @@ public abstract class AbstractHostAvailabler implements HostAvailabler {
 
     private Map<String, List<String>> copyAndSortHost(
             Map<String, List<String>> hostConfig, List<HostAvailabilityScore> newHostScores) {
-
         Map<String, Double> hostScoreIndex = newHostScores.stream()
-                .collect(Collectors.toMap(HostAvailabilityScore::getHost, HostAvailabilityScore::getScore));
+                .collect(Collectors.toMap(
+                        HostAvailabilityScore::getHost,
+                        // mainHost is prioritized for use when available, make sure mainHost has the highest score
+                        newHostScore -> newHostScore.getHost().equals(mainHost) &&
+                        newHostScore.getScore() >= MAIN_HOST_AVAILABLE_SCORE ? 1 + newHostScore.getScore() : newHostScore.getScore()));
         Map<String, List<String>> newHostConfig = new HashMap<>();
 
         hostConfig.forEach((path, hosts) -> {

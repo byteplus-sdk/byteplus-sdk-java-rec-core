@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,6 +53,14 @@ public class PingHostAvailabler extends AbstractHostAvailabler {
 
     public PingHostAvailabler(String projectID, List<String> hosts, Config config) throws BizException {
         super(projectID, hosts, false);
+        this.config = fillDefaultConfig(config);
+        httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
+        init(this.config.fetchHostInterval, this.config.pingInterval);
+    }
+
+    public PingHostAvailabler(String projectID, List<String> hosts, Config config, String mainHost,
+                              boolean skipFetchHosts) throws BizException {
+        super(projectID, hosts, mainHost, skipFetchHosts, false);
         this.config = fillDefaultConfig(config);
         httpCli = Utils.buildOkHTTPClient(this.config.pingTimeout);
         init(this.config.fetchHostInterval, this.config.pingInterval);
