@@ -73,6 +73,8 @@ public class HTTPClient {
 
         private List<String> hosts;
 
+        private String mainHost;
+
         private IRegion region;
 
         private HostAvailablerFactory hostAvailablerFactory;
@@ -151,13 +153,11 @@ public class HTTPClient {
         }
 
         private HostAvailabler newHostAvailabler() throws BizException {
+            // if '.hosts' is set, then skip fetch hosts from server
             if (Utils.isNotEmptyList(hosts)) {
-                return hostAvailablerFactory.newHostAvailabler(hosts);
+                return hostAvailablerFactory.newHostAvailabler(projectID, hosts, mainHost, true);
             }
-            if (Objects.nonNull(projectID) && !projectID.isEmpty()) {
-                return hostAvailablerFactory.newHostAvailabler(projectID, region.getHosts());
-            }
-            return hostAvailablerFactory.newHostAvailabler(region.getHosts());
+            return hostAvailablerFactory.newHostAvailabler(projectID, region.getHosts(), mainHost, false);
         }
 
         private HTTPCaller newHTTPCaller() {
