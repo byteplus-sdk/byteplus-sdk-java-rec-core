@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -69,6 +70,8 @@ public class HTTPCaller {
     private final boolean keepAlive;
 
     private ScheduledExecutorService heartbeatExecutor;
+
+    private ExecutorService keepAliveExecutor;
 
     protected HTTPCaller(String projectID, String tenantID, String air_auth_token,
                          HostAvailabler hostAvailabler, Config callerConfig, String schema, boolean keepAlive) {
@@ -114,11 +117,15 @@ public class HTTPCaller {
         if (Objects.isNull(config.keepAlivePingInterval) || config.keepAlivePingInterval.isZero()) {
             config.keepAlivePingInterval = Constant.DEFAULT_KEEPALIVE_PING_INTERVAL;
         }
+        if (config.maxKeepAliveConnections <= 0) {
+            config.maxKeepAliveConnections = Constant.DEFAULT_MAX_KEEPALIVE_CONNECTIONS;
+        }
         return config;
     }
 
     protected void initHeartbeatExecutor(Duration keepAlivePingInterval) {
         heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        keepAliveExecutor = Executors.newFixedThreadPool(this.config.maxKeepAliveConnections);
         heartbeatExecutor.scheduleAtFixedRate(this::heartbeat, 1,
                 keepAlivePingInterval.getSeconds(), TimeUnit.SECONDS);
     }
@@ -128,14 +135,21 @@ public class HTTPCaller {
             for(Map.Entry<Duration, OkHttpClient> entry: timeoutHTTPCliMap.entrySet()) {
                 long timeoutMs = entry.getKey().toMillis();
                 OkHttpClient client = entry.getValue();
-                String[] metricsTags = new String[] {
-                        "from:http_caller",
-                        "project_id:" + getProjectID(),
-                        "timeout:" + timeoutMs,
-                        "host:" + Utils.escapeMetricsTagValue(host)
-                };
-                Metrics.counter(Constant.METRICS_KEY_HEARTBEAT_COUNT, 1, metricsTags);
-                Utils.ping(getProjectID(), client, DEFAULT_PING_URL_FORMAT, schema, host);
+                for (int i = 0; i < config.maxKeepAliveConnections; i++) {
+                   keepAliveExecutor.submit(new Runnable() {
+                       @Override
+                       public void run() {
+                           String[] metricsTags = new String[] {
+                                   "from:http_caller",
+                                   "project_id:" + getProjectID(),
+                                   "timeout:" + timeoutMs,
+                                   "host:" + Utils.escapeMetricsTagValue(host)
+                           };
+                           Metrics.counter(Constant.METRICS_KEY_HEARTBEAT_COUNT, 1, metricsTags);
+                           Utils.ping(getProjectID(), client, DEFAULT_PING_URL_FORMAT, schema, host);
+                       }
+                   });
+                }
             }
         }
     }
@@ -464,10 +478,12 @@ public class HTTPCaller {
     }
 
     public void shutdown() {
-        if (Objects.isNull(heartbeatExecutor)) {
-            return;
+        if (!Objects.isNull(heartbeatExecutor)) {
+            heartbeatExecutor.shutdown();
         }
-        heartbeatExecutor.shutdown();
+        if (!Objects.isNull(keepAliveExecutor)) {
+            keepAliveExecutor.shutdown();
+        }
     }
 
     @Getter
@@ -482,10 +498,15 @@ public class HTTPCaller {
 
         // for httpCaller.
         private Duration keepAlivePingInterval;
+
+        // for httpCaller.
+        private int maxKeepAliveConnections;
     }
 
     protected static Config getDefaultConfig() {
         return new Config(Constant.DEFAULT_MAX_IDLE_CONNECTIONS,
-                Constant.DEFAULT_KEEPALIVE_DURATION, Constant.DEFAULT_KEEPALIVE_PING_INTERVAL);
+                Constant.DEFAULT_KEEPALIVE_DURATION,
+                Constant.DEFAULT_KEEPALIVE_PING_INTERVAL,
+                Constant.DEFAULT_MAX_KEEPALIVE_CONNECTIONS);
     }
 }

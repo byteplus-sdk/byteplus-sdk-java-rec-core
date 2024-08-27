@@ -75,6 +75,7 @@ public class Utils {
                         keepAliveDuration.toMillis(),
                         TimeUnit.MILLISECONDS)
                 )
+                // Has no practical effect, only used for websocket
                 .pingInterval(Constant.DEFAULT_KEEPALIVE_PING_INTERVAL)
                 .build();
         return buildOkHTTPClient(client, timeout);
