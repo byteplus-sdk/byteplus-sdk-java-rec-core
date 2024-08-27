@@ -1,8 +1,9 @@
-#  (2023-11-10)
+## [1.0.15](https://github.com/byteplus-sdk/byteplus-sdk-java-rec-core/compare/1.0.14...1.0.15) (2024-08-27)
 
 
 ### Features
 
+* keepalive supports maxKeepAliveConnections parameter 
 * support set mainhost 
 
 
