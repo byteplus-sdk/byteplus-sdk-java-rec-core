@@ -34,6 +34,8 @@ public final class Constant {
     // The default max idle connections of okhttp client connection pool
     public final static int DEFAULT_MAX_IDLE_CONNECTIONS = 32;
 
+    public final static int DEFAULT_MAX_KEEPALIVE_CONNECTIONS = 3;
+
     // Metrics Key
     public final static String METRICS_KEY_COMMON_INFO = "common.info";
     public final static String METRICS_KEY_COMMON_WARN = "common.warn";
