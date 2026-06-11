@@ -1,7 +1,7 @@
 package com.byteplus.rec.core;
 
 import com.byteplus.rec.core.Auth.Credential;
-import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson2.JSON;
 import com.byteplus.rec.core.metrics.Metrics;
 import com.byteplus.rec.core.metrics.MetricsLog;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -185,7 +185,7 @@ public class HTTPCaller {
         byte[] reqBytes = JSON.toJSONBytes(request);
         String contentType = "application/json";
         byte[] rspBytes = doRequest(url, reqBytes, contentType, options);
-        return JSON.parseObject(rspBytes, resp.getClass());
+        return JSON.parseObject(rspBytes, (Class<Rsp>) resp.getClass());
     }
 
     private byte[] doRequest(String url,
