@@ -185,7 +185,7 @@ public class HTTPCaller {
         byte[] reqBytes = JSON.toJSONBytes(request);
         String contentType = "application/json";
         byte[] rspBytes = doRequest(url, reqBytes, contentType, options);
-        return JSON.parseObject(rspBytes, resp.getClass());
+        return JSON.parseObject(rspBytes, (Class<Rsp>) resp.getClass());
     }
 
     private byte[] doRequest(String url,
